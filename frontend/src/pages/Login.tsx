@@ -36,7 +36,6 @@ export default function Login() {
       }
       const data = await res.json()
       login(data.token, data.user)
-      navigate('/dashboard')
     } catch {
       setError('Something went wrong')
     } finally {

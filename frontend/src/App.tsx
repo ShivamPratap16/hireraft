@@ -10,12 +10,17 @@ import Profile from './pages/Profile'
 import Landing from './pages/marketing/Landing'
 import Privacy from './pages/marketing/Privacy'
 import Terms from './pages/marketing/Terms'
+import AdminLayout from './pages/admin/AdminLayout'
+import AdminDashboard from './pages/admin/AdminDashboard'
+import AdminUsers from './pages/admin/AdminUsers'
+import AdminActivity from './pages/admin/AdminActivity'
+import AdminAnalytics from './pages/admin/AdminAnalytics'
 import { useAuth } from './lib/auth'
 import { api } from './lib/api'
 import { Avatar, ThemeToggle } from './components/ui'
 import {
   LayoutDashboard, Bot, ScrollText, LogOut, UserCircle,
-  Menu, X, Zap, Bell,
+  Menu, X, Zap, Bell, ShieldAlert
 } from 'lucide-react'
 import { format } from 'date-fns'
 
@@ -261,6 +266,17 @@ function ProtectedLayout() {
               </NavLink>
             )
           })}
+          
+          {user?.role === 'admin' && (
+             <NavLink
+               to="/admin/dashboard"
+               className="group flex items-center gap-3 px-3 py-2.5 mt-2 rounded-xl text-sm font-medium transition-all duration-150 text-indigo-400 hover:bg-indigo-500/10 hover:text-indigo-500 border border-indigo-500/20"
+               onClick={() => setSidebarOpen(false)}
+             >
+               <ShieldAlert size={18} className="group-hover:scale-110 transition-transform" />
+               Admin Panel
+             </NavLink>
+          )}
         </nav>
 
         <div className="px-3 pb-2 flex items-center justify-between gap-2">
@@ -327,27 +343,42 @@ function ProtectedLayout() {
   )
 }
 
+function useHomeRoute() {
+  const { user } = useAuth()
+  return user?.role === 'admin' ? '/admin/dashboard' : '/dashboard'
+}
+
 function LandingRoute() {
   const { isAuthenticated } = useAuth()
-  if (isAuthenticated) return <Navigate to="/dashboard" replace />
+  const home = useHomeRoute()
+  if (isAuthenticated) return <Navigate to={home} replace />
   return <Landing />
 }
 
 function NotFoundRedirect() {
   const { isAuthenticated } = useAuth()
-  return <Navigate to={isAuthenticated ? '/dashboard' : '/'} replace />
+  const home = useHomeRoute()
+  return <Navigate to={isAuthenticated ? home : '/'} replace />
 }
 
 export default function App() {
   const { isAuthenticated } = useAuth()
+  const home = useHomeRoute()
 
   return (
     <Routes>
       <Route path="/" element={<LandingRoute />} />
-      <Route path="/login" element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <Login />} />
-      <Route path="/register" element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <Register />} />
+      <Route path="/login" element={isAuthenticated ? <Navigate to={home} replace /> : <Login />} />
+      <Route path="/register" element={isAuthenticated ? <Navigate to={home} replace /> : <Register />} />
       <Route path="/privacy" element={<Privacy />} />
       <Route path="/terms" element={<Terms />} />
+      <Route path="/admin" element={<AdminLayout />}>
+        <Route index element={<Navigate to="dashboard" replace />} />
+        <Route path="dashboard" element={<AdminDashboard />} />
+        <Route path="users" element={<AdminUsers />} />
+        <Route path="activity" element={<AdminActivity />} />
+        <Route path="analytics" element={<AdminAnalytics />} />
+      </Route>
       <Route element={<ProtectedLayout />}>
         <Route path="dashboard" element={<Dashboard />} />
         <Route path="profile" element={<Profile />} />

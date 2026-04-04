@@ -1,40 +1,31 @@
 import csv
 import io
 from datetime import date, datetime, timedelta, timezone
-
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
-from sqlalchemy import and_, func, or_, select
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from backend.auth import get_current_user
-from backend.database import get_db
 from backend.models import Application, User
 from backend.schemas import ApplicationRead, ApplicationStatusUpdate
 
 router = APIRouter(tags=["dashboard"])
 
-
-async def _sibling_platforms(
-    db: AsyncSession, user_id: int, app: Application
-) -> list[str]:
+async def _sibling_platforms(user: User, app: Application) -> list[str]:
     if not app.company_name or app.company_name.strip().lower() in ("", "unknown"):
         return []
-    result = await db.execute(
-        select(Application.platform).where(
-            Application.user_id == user_id,
-            Application.id != app.id,
-            func.lower(Application.job_title) == app.job_title.strip().lower(),
-            func.lower(Application.company_name) == app.company_name.strip().lower(),
-        )
-    )
-    return sorted({row[0] for row in result.fetchall()})
+    
+    query = {
+        "user_id": str(user.id),
+        "_id": {"$ne": app.id},
+        "job_title": {"$regex": f"^{app.job_title.strip()}$", "$options": "i"},
+        "company_name": {"$regex": f"^{app.company_name.strip()}$", "$options": "i"}
+    }
+    rows = await Application.find(query).to_list()
+    return sorted(list(set(row.platform for row in rows)))
 
-
-def _app_read(app: Application, siblings: list[str]) -> ApplicationRead:
-    base = ApplicationRead.model_validate(app)
-    return base.model_copy(update={"other_platforms": siblings})
-
+def _app_read(app: Application, siblings: list[str]) -> dict:
+    base = ApplicationRead.model_validate(app).model_dump()
+    base["other_platforms"] = siblings
+    return base
 
 @router.get("/applications", response_model=dict)
 async def list_applications(
@@ -47,48 +38,38 @@ async def list_applications(
     page: int = 1,
     page_size: int = 20,
     user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
 ):
-    conditions = [Application.user_id == user.id]
+    query: dict = {"user_id": str(user.id)}
     if platform:
-        conditions.append(Application.platform == platform)
+        query["platform"] = platform
     if status:
-        conditions.append(Application.status == status)
+        query["status"] = status
     if search:
-        pattern = f"%{search.lower()}%"
-        conditions.append(
-            or_(
-                func.lower(Application.job_title).like(pattern),
-                func.lower(Application.company_name).like(pattern),
-            )
-        )
+        pattern = f".*{search}.*"
+        query["$or"] = [
+            {"job_title": {"$regex": pattern, "$options": "i"}},
+            {"company_name": {"$regex": pattern, "$options": "i"}},
+        ]
+    
+    date_query = {}
     if date_from:
-        conditions.append(Application.applied_at >= datetime.fromisoformat(date_from))
+        date_query["$gte"] = datetime.fromisoformat(date_from)
     if date_to:
-        conditions.append(Application.applied_at <= datetime.fromisoformat(date_to))
+        date_query["$lte"] = datetime.fromisoformat(date_to)
+    if date_query:
+        query["applied_at"] = date_query
+        
     if follow_up_due:
         today = date.today().isoformat()
-        conditions.append(Application.follow_up_date != "")
-        conditions.append(Application.follow_up_date <= today)
+        query["follow_up_date"] = {"$ne": "", "$lte": today}
 
-    where_clause = and_(*conditions)
-
-    total_q = await db.execute(select(func.count(Application.id)).where(where_clause))
-    total = total_q.scalar() or 0
-
+    total = await Application.find(query).count()
     offset = (page - 1) * page_size
-    result = await db.execute(
-        select(Application)
-        .where(where_clause)
-        .order_by(Application.applied_at.desc())
-        .offset(offset)
-        .limit(page_size)
-    )
-    rows = result.scalars().all()
+    rows = await Application.find(query).sort("-applied_at").skip(offset).limit(page_size).to_list()
 
     items = []
     for r in rows:
-        sibs = await _sibling_platforms(db, user.id, r)
+        sibs = await _sibling_platforms(user, r)
         items.append(_app_read(r, sibs))
 
     return {
@@ -101,18 +82,20 @@ async def list_applications(
 
 @router.patch("/applications/{app_id}", response_model=ApplicationRead)
 async def update_application_status(
-    app_id: int,
+    app_id: str,
     body: ApplicationStatusUpdate,
     user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
 ):
     if body.status is None and body.notes is None and body.follow_up_date is None:
         raise HTTPException(status_code=400, detail="No fields to update")
 
-    result = await db.execute(
-        select(Application).where(Application.id == app_id, Application.user_id == user.id)
-    )
-    app = result.scalar_one_or_none()
+    from beanie import PydanticObjectId
+    try:
+        req_id = PydanticObjectId(app_id)
+    except:
+        raise HTTPException(status_code=404, detail="Application not found")
+
+    app = await Application.find_one({"_id": req_id, "user_id": str(user.id)})
     if not app:
         raise HTTPException(status_code=404, detail="Application not found")
 
@@ -126,48 +109,30 @@ async def update_application_status(
     if body.follow_up_date is not None:
         app.follow_up_date = body.follow_up_date
 
-    await db.commit()
-    await db.refresh(app)
-    sibs = await _sibling_platforms(db, user.id, app)
-    return _app_read(app, sibs)
+    await app.save()
+    sibs = await _sibling_platforms(user, app)
+    out = _app_read(app, sibs)
+    return ApplicationRead(**out)
 
 
 @router.get("/applications/stats")
 async def application_stats(
     user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
 ):
-    total_q = await db.execute(
-        select(func.count(Application.id)).where(Application.user_id == user.id)
-    )
-    total = total_q.scalar() or 0
+    total = await Application.find({"user_id": str(user.id)}).count()
 
     by_status = {}
     for s in ["applied", "viewed", "interview", "rejected", "manual_apply_needed"]:
-        q = await db.execute(
-            select(func.count(Application.id)).where(
-                Application.user_id == user.id, Application.status == s
-            )
-        )
-        by_status[s] = q.scalar() or 0
+        by_status[s] = await Application.find({"user_id": str(user.id), "status": s}).count()
 
     by_platform = {}
     for p in ["linkedin", "indeed", "naukri", "internshala"]:
-        q = await db.execute(
-            select(func.count(Application.id)).where(
-                Application.user_id == user.id, Application.platform == p
-            )
-        )
-        by_platform[p] = q.scalar() or 0
+        by_platform[p] = await Application.find({"user_id": str(user.id), "platform": p}).count()
 
-    follow_q = await db.execute(
-        select(func.count(Application.id)).where(
-            Application.user_id == user.id,
-            Application.follow_up_date != "",
-            Application.follow_up_date <= date.today().isoformat(),
-        )
-    )
-    follow_ups_due = follow_q.scalar() or 0
+    follow_ups_due = await Application.find({
+        "user_id": str(user.id),
+        "follow_up_date": {"$ne": "", "$lte": date.today().isoformat()}
+    }).count()
 
     return {
         "total": total,
@@ -180,40 +145,33 @@ async def application_stats(
 @router.get("/applications/analytics")
 async def application_analytics(
     user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
 ):
-    today = date.today()
+    today = datetime.now(timezone.utc)
     daily: list[dict] = []
+    
+    thirty_days_ago = today - timedelta(days=30)
+    apps_last_30 = await Application.find({
+        "user_id": str(user.id),
+        "applied_at": {"$gte": thirty_days_ago}
+    }).to_list()
+    
+    buckets = {}
+    for a in apps_last_30:
+        ds = a.applied_at.date().isoformat()
+        buckets[ds] = buckets.get(ds, 0) + 1
+
+    tdt = date.today()
     for i in range(29, -1, -1):
-        d = today - timedelta(days=i)
+        d = tdt - timedelta(days=i)
         ds = d.isoformat()
-        q = await db.execute(
-            select(func.count(Application.id)).where(
-                Application.user_id == user.id,
-                func.date(Application.applied_at) == ds,
-            )
-        )
-        daily.append({"date": ds, "count": q.scalar() or 0})
+        daily.append({"date": ds, "count": buckets.get(ds, 0)})
 
     by_platform = {}
     for p in ["linkedin", "indeed", "naukri", "internshala"]:
-        q = await db.execute(
-            select(func.count(Application.id)).where(
-                Application.user_id == user.id, Application.platform == p
-            )
-        )
-        by_platform[p] = q.scalar() or 0
+        by_platform[p] = await Application.find({"user_id": str(user.id), "platform": p}).count()
 
-    applied = await db.scalar(
-        select(func.count(Application.id)).where(
-            Application.user_id == user.id, Application.status == "applied"
-        )
-    ) or 0
-    rejected = await db.scalar(
-        select(func.count(Application.id)).where(
-            Application.user_id == user.id, Application.status == "rejected"
-        )
-    ) or 0
+    applied = await Application.find({"user_id": str(user.id), "status": "applied"}).count()
+    rejected = await Application.find({"user_id": str(user.id), "status": "rejected"}).count()
     denom = applied + rejected
     success_rate = round(100.0 * applied / denom, 1) if denom else None
 
@@ -221,19 +179,15 @@ async def application_analytics(
     week_ago = now - timedelta(days=7)
     two_weeks = now - timedelta(days=14)
 
-    this_week = await db.scalar(
-        select(func.count(Application.id)).where(
-            Application.user_id == user.id,
-            Application.applied_at >= week_ago,
-        )
-    ) or 0
-    prev_week = await db.scalar(
-        select(func.count(Application.id)).where(
-            Application.user_id == user.id,
-            Application.applied_at >= two_weeks,
-            Application.applied_at < week_ago,
-        )
-    ) or 0
+    this_week = await Application.find({
+        "user_id": str(user.id),
+        "applied_at": {"$gte": week_ago}
+    }).count()
+    
+    prev_week = await Application.find({
+        "user_id": str(user.id),
+        "applied_at": {"$gte": two_weeks, "$lt": week_ago}
+    }).count()
 
     return {
         "daily_applications": daily,
@@ -249,20 +203,14 @@ async def export_applications(
     platform: str | None = None,
     status: str | None = None,
     user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
 ):
-    conditions = [Application.user_id == user.id]
+    query = {"user_id": str(user.id)}
     if platform:
-        conditions.append(Application.platform == platform)
+        query["platform"] = platform
     if status:
-        conditions.append(Application.status == status)
+        query["status"] = status
 
-    result = await db.execute(
-        select(Application)
-        .where(and_(*conditions))
-        .order_by(Application.applied_at.desc())
-    )
-    rows = result.scalars().all()
+    rows = await Application.find(query).sort("-applied_at").to_list()
 
     buf = io.StringIO()
     writer = csv.writer(buf)

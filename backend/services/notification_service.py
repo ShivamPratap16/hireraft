@@ -1,11 +1,7 @@
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from backend.models import Notification
 
-
 async def create_notification(
-    session: AsyncSession,
-    user_id: int,
+    user_id: str,
     type_: str,
     title: str,
     message: str,
@@ -17,5 +13,4 @@ async def create_notification(
         message=message,
         is_read=False,
     )
-    session.add(n)
-    await session.commit()
+    await n.insert()

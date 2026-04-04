@@ -1,9 +1,10 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react'
 
 interface UserInfo {
-  id: number
+  id: string
   email: string
   name: string
+  role: string
 }
 
 interface AuthContextType {
@@ -34,6 +35,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(newUser)
     localStorage.setItem('jp_token', newToken)
     localStorage.setItem('jp_user', JSON.stringify(newUser))
+    // Force hard navigation so route guards read the correct role
+    const dest = newUser.role === 'admin' ? '/admin/dashboard' : '/dashboard'
+    window.location.href = dest
   }
 
   const logout = () => {
@@ -46,7 +50,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!token) return
     fetch('/api/auth/me', { headers: { Authorization: `Bearer ${token}` } })
-      .then((r) => { if (!r.ok) logout() })
+      .then((r) => {
+        if (!r.ok) { logout(); return }
+        return r.json()
+      })
+      .then((data) => {
+        if (data) {
+          setUser(data)
+          localStorage.setItem('jp_user', JSON.stringify(data))
+        }
+      })
       .catch(() => logout())
   }, [])
 

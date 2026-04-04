@@ -10,6 +10,8 @@ class User(Document):
     email: Indexed(str, unique=True)
     hashed_password: str
     name: str = ""
+    role: str = "user"
+    is_blocked: bool = False
     created_at: datetime = Field(default_factory=utcnow)
 
     class Settings:

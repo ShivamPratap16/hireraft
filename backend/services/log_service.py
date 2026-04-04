@@ -1,7 +1,6 @@
 import json
 from datetime import datetime, timezone
 from fastapi import WebSocket
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.models import RunLog
 
@@ -28,12 +27,11 @@ async def broadcast(data: dict):
 
 
 async def log(
-    session: AsyncSession,
     run_id: str,
     platform: str,
     level: str,
     message: str,
-    user_id: int | None = None,
+    user_id: str | None = None,
 ):
     now = datetime.now(timezone.utc)
     entry = RunLog(
@@ -44,8 +42,7 @@ async def log(
         timestamp=now,
         user_id=user_id,
     )
-    session.add(entry)
-    await session.commit()
+    await entry.insert()
 
     await broadcast({
         "run_id": run_id,
@@ -53,5 +50,5 @@ async def log(
         "level": level,
         "message": message,
         "timestamp": now.isoformat(),
-        "user_id": user_id,
+        "user_id": str(user_id) if user_id else None,
     })

@@ -4,7 +4,6 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 
 from backend.config import DATA_DIR
-from backend.database import async_session
 from backend.services import application_service, log_service
 
 SESSION_DIR = DATA_DIR / "browser_sessions"
@@ -24,7 +23,7 @@ class BaseBot(ABC):
         location: str,
         daily_limit: int,
         resume_path: str,
-        user_id: int | None = None,
+        user_id: str | None = None,
         experience: str = "",
     ):
         self.run_id = run_id
@@ -44,32 +43,27 @@ class BaseBot(ABC):
         return SESSION_DIR / f"u{self.user_id}_{self.platform}.json"
 
     async def _log(self, level: str, message: str):
-        async with async_session() as session:
-            await log_service.log(session, self.run_id, self.platform, level, message, self.user_id)
+        await log_service.log(self.run_id, self.platform, level, message, self.user_id)
 
     async def _random_delay(self, low: float = 2.0, high: float = 5.0):
         await asyncio.sleep(random.uniform(low, high))
 
     async def _can_apply_more(self) -> bool:
-        async with async_session() as session:
-            count = await application_service.daily_count(session, self.platform, self.user_id)
-            return count < self.daily_limit
+        count = await application_service.daily_count(self.platform, self.user_id)
+        return count < self.daily_limit
 
     async def _already_applied(self, job_url: str) -> bool:
-        async with async_session() as session:
-            return await application_service.already_applied(session, job_url, self.user_id)
+        return await application_service.already_applied(job_url, self.user_id)
 
     async def _duplicate_on_other_platform(self, job_title: str, company_name: str) -> bool:
-        async with async_session() as session:
-            return await application_service.duplicate_same_job_other_platform(
-                session, self.user_id, job_title, company_name, self.platform
-            )
+        return await application_service.duplicate_same_job_other_platform(
+            self.user_id, job_title, company_name, self.platform
+        )
 
     async def _save(self, job_title: str, company_name: str, job_url: str):
-        async with async_session() as session:
-            return await application_service.save_application(
-                session, job_title, company_name, self.platform, job_url, self.user_id
-            )
+        return await application_service.save_application(
+            job_title, company_name, self.platform, job_url, self.user_id
+        )
 
     async def _maybe_pause_for_captcha(self, page):
         url = page.url.lower()
