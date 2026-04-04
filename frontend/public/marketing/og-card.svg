@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-label="HireRaft">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0f0f14"/>
+      <stop offset="100%" style="stop-color:#16161e"/>
+    </linearGradient>
+    <linearGradient id="brand" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#22d3ee"/>
+      <stop offset="100%" style="stop-color:#0891b2"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <rect x="80" y="220" width="80" height="80" rx="18" fill="url(#brand)"/>
+  <text x="190" y="285" fill="#f0f0f5" font-family="system-ui,sans-serif" font-size="52" font-weight="700">HireRaft</text>
+  <text x="80" y="380" fill="#a0a0b8" font-family="system-ui,sans-serif" font-size="32" font-weight="400">Auto-apply job search engine</text>
+  <text x="80" y="460" fill="#5a5a72" font-family="system-ui,sans-serif" font-size="22">Naukri · LinkedIn · Indeed · Internshala</text>
+</svg>

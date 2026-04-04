@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <script>
+      (function () {
+        try {
+          var t = localStorage.getItem('hireraft-theme');
+          document.documentElement.setAttribute('data-theme', t === 'light' ? 'light' : 'dark');
+        } catch (e) {
+          document.documentElement.setAttribute('data-theme', 'dark');
+        }
+      })();
+    </script>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="HireRaft automates job applications across Naukri, LinkedIn, Indeed, and Internshala—scheduled runs, dashboard tracking, and follow-ups."
+    />
+    <meta property="og:title" content="HireRaft — Auto-apply job search engine" />
+    <meta
+      property="og:description"
+      content="Scale applications across major job boards. Dashboard, scheduling, and platform automation in one place."
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://hireraft.com/" />
+    <meta property="og:image" content="https://hireraft.com/marketing/og-card.svg" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:site" content="@joinhireraft" />
+    <meta name="twitter:image" content="https://hireraft.com/marketing/og-card.svg" />
+    <title>HireRaft — Auto-apply job search engine</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

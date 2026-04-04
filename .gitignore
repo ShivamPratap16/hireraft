@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+venv/
+.env
+data/jobpilot.db
+data/resumes/*
+!data/resumes/.gitkeep
+node_modules/
+dist/
+.DS_Store

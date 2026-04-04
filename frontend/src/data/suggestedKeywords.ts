@@ -1,0 +1,22 @@
+/** Quick-add skills / terms common on job boards (Indeed, LinkedIn style). */
+export const SUGGESTED_KEYWORDS: readonly string[] = [
+  'Python',
+  'Java',
+  'JavaScript',
+  'TypeScript',
+  'React',
+  'Node.js',
+  'AWS',
+  'SQL',
+  'Kubernetes',
+  'Docker',
+  'Machine Learning',
+  'API',
+  'Microservices',
+  'Spring Boot',
+  'Go',
+  'Rust',
+  'Data Engineering',
+  'Product Management',
+  'Sales',
+]

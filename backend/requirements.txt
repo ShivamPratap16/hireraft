@@ -1,0 +1,13 @@
+fastapi[standard]
+uvicorn[standard]
+motor
+beanie
+python-multipart
+apscheduler
+playwright
+cryptography
+python-dotenv
+pydantic
+pyjwt[crypto]
+bcrypt
+httpx
