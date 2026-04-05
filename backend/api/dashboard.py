@@ -23,9 +23,10 @@ async def _sibling_platforms(user: User, app: Application) -> list[str]:
     return sorted(list(set(row.platform for row in rows)))
 
 def _app_read(app: Application, siblings: list[str]) -> dict:
-    base = ApplicationRead.model_validate(app).model_dump()
-    base["other_platforms"] = siblings
-    return base
+    d = app.model_dump()
+    d["id"] = str(app.id)
+    d["other_platforms"] = siblings
+    return d
 
 @router.get("/applications", response_model=dict)
 async def list_applications(
@@ -112,7 +113,7 @@ async def update_application_status(
     await app.save()
     sibs = await _sibling_platforms(user, app)
     out = _app_read(app, sibs)
-    return ApplicationRead(**out)
+    return out
 
 
 @router.get("/applications/stats")

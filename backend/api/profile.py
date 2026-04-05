@@ -5,6 +5,11 @@ from backend.auth import get_current_user
 
 router = APIRouter(tags=["profile"])
 
+def _profile_to_read(profile: Profile) -> ProfileRead:
+    d = profile.model_dump()
+    d["id"] = str(profile.id)
+    return ProfileRead(**d)
+
 @router.get("/profile", response_model=ProfileRead)
 async def get_profile(
     user: User = Depends(get_current_user),
@@ -13,7 +18,7 @@ async def get_profile(
     if not profile:
         profile = Profile(user_id=str(user.id), full_name=user.name)
         await profile.insert()
-    return ProfileRead.model_validate(profile)
+    return _profile_to_read(profile)
 
 @router.put("/profile", response_model=ProfileRead)
 async def update_profile(
@@ -29,4 +34,4 @@ async def update_profile(
         setattr(profile, field, value)
 
     await profile.save()
-    return ProfileRead.model_validate(profile)
+    return _profile_to_read(profile)

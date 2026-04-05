@@ -6,6 +6,11 @@ from backend.auth import get_current_user
 
 router = APIRouter(tags=["logs"])
 
+def _log_to_read(r: RunLog) -> RunLogRead:
+    d = r.model_dump()
+    d["id"] = str(r.id)
+    return RunLogRead(**d)
+
 @router.get("/logs", response_model=list[RunLogRead])
 async def get_logs(
     run_id: str | None = None,
@@ -20,7 +25,7 @@ async def get_logs(
         query["platform"] = platform
 
     logs = await RunLog.find(query).sort("-timestamp").limit(limit).to_list()
-    return [RunLogRead.model_validate(r) for r in logs]
+    return [_log_to_read(r) for r in logs]
 
 @router.websocket("/ws/logs")
 async def websocket_logs(ws: WebSocket):

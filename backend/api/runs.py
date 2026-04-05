@@ -5,6 +5,16 @@ from backend.schemas import BotRunRead, RunDetailResponse, RunLogRead
 
 router = APIRouter(tags=["runs"])
 
+def _run_to_read(r: BotRun) -> BotRunRead:
+    d = r.model_dump()
+    d["id"] = str(r.id)
+    return BotRunRead(**d)
+
+def _log_to_read(l: RunLog) -> RunLogRead:
+    d = l.model_dump()
+    d["id"] = str(l.id)
+    return RunLogRead(**d)
+
 
 @router.get("/runs", response_model=dict)
 async def list_runs(
@@ -20,7 +30,7 @@ async def list_runs(
         "total": total,
         "page": page,
         "page_size": page_size,
-        "items": [BotRunRead.model_validate(r) for r in rows],
+        "items": [_run_to_read(r) for r in rows],
     }
 
 
@@ -36,6 +46,6 @@ async def get_run_detail(
     logs = await RunLog.find({"run_id": run_id, "user_id": str(user.id)}).sort("timestamp").to_list()
     return RunDetailResponse(
         run_id=run_id,
-        platforms=[BotRunRead.model_validate(r) for r in run_rows],
-        logs=[RunLogRead.model_validate(l) for l in logs],
+        platforms=[_run_to_read(r) for r in run_rows],
+        logs=[_log_to_read(l) for l in logs],
     )

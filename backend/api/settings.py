@@ -7,6 +7,16 @@ from backend.auth import get_current_user
 
 router = APIRouter(tags=["settings"])
 
+def _ps_to_read(r: PlatformSetting) -> PlatformSettingRead:
+    d = r.model_dump()
+    d["id"] = str(r.id)
+    return PlatformSettingRead(**d)
+
+def _gs_to_read(gs: GlobalSetting) -> GlobalSettingRead:
+    d = gs.model_dump()
+    d["id"] = str(gs.id)
+    return GlobalSettingRead(**d)
+
 @router.get("/settings/platforms", response_model=list[PlatformSettingRead])
 async def get_platform_settings(
     user: User = Depends(get_current_user),
@@ -14,7 +24,7 @@ async def get_platform_settings(
     rows = await PlatformSetting.find({"user_id": str(user.id)}).sort("platform").to_list()
     items = []
     for r in rows:
-        dto = PlatformSettingRead.model_validate(r)
+        dto = _ps_to_read(r)
         if dto.password:
             dto.password = decrypt(dto.password)
         items.append(dto)
@@ -46,7 +56,7 @@ async def update_platform_setting(
 
     await ps.save()
 
-    response = PlatformSettingRead.model_validate(ps)
+    response = _ps_to_read(ps)
     if response.password:
         response.password = decrypt(response.password)
     return response
@@ -57,8 +67,9 @@ async def get_global_settings(
 ):
     gs = await GlobalSetting.find_one({"user_id": str(user.id)})
     if not gs:
-        raise HTTPException(status_code=404, detail="Global settings not found")
-    return GlobalSettingRead.model_validate(gs)
+        gs = GlobalSetting(user_id=str(user.id))
+        await gs.insert()
+    return _gs_to_read(gs)
 
 @router.put("/settings/global", response_model=GlobalSettingRead)
 async def update_global_settings(
@@ -67,7 +78,8 @@ async def update_global_settings(
 ):
     gs = await GlobalSetting.find_one({"user_id": str(user.id)})
     if not gs:
-        raise HTTPException(status_code=404, detail="Global settings not found")
+        gs = GlobalSetting(user_id=str(user.id))
+        await gs.insert()
 
     for field, value in body.model_dump(exclude_unset=True).items():
         setattr(gs, field, value)
@@ -77,7 +89,7 @@ async def update_global_settings(
         reschedule(body.schedule_time)
 
     await gs.save()
-    return GlobalSettingRead.model_validate(gs)
+    return _gs_to_read(gs)
 
 @router.post("/settings/resume")
 async def upload_resume(
