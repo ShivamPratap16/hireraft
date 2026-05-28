@@ -3,6 +3,7 @@ import random
 from abc import ABC, abstractmethod
 from pathlib import Path
 
+from backend.bots._constants import USER_AGENT
 from backend.config import DATA_DIR
 from backend.services import application_service, log_service
 
@@ -103,13 +104,7 @@ class BaseBot(ABC):
                 args=["--disable-blink-features=AutomationControlled"],
             )
             state_path = self._session_state_path()
-            ctx_kwargs = {
-                "user_agent": (
-                    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
-                    "AppleWebKit/537.36 (KHTML, like Gecko) "
-                    "Chrome/120.0.0.0 Safari/537.36"
-                ),
-            }
+            ctx_kwargs = {"user_agent": USER_AGENT}
             if state_path and state_path.exists():
                 ctx_kwargs["storage_state"] = str(state_path)
                 await self._log("info", "Using saved session cookies")
