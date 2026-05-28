@@ -172,3 +172,65 @@ class ProfileUpdate(BaseModel):
     notice_period: Optional[str] = None
     job_type: Optional[str] = None
     work_mode: Optional[str] = None
+
+
+# ── Slice-1 discovery schemas ──
+
+class CompanyRead(BaseModel):
+    id: str
+    name: str
+    ats: str
+    slug: str
+    active: bool
+    last_synced_at: Optional[datetime]
+    last_sync_error: str
+    created_at: datetime
+
+
+class CompanyCreate(BaseModel):
+    name: str
+    ats: str
+    slug: str
+
+
+class CompanyUpdate(BaseModel):
+    active: Optional[bool] = None
+    name: Optional[str] = None
+    slug: Optional[str] = None
+
+
+class CompanySeedItem(BaseModel):
+    name: str
+    ats: str
+    slug: str
+
+
+class MatchFeedItem(BaseModel):
+    id: str
+    job_title: str
+    company_name: str
+    location: str
+    job_url: str
+    ats: str
+    score: float
+    matched_terms: list[str]
+    decision: str
+    state: str
+    created_at: datetime
+    applied_at: Optional[datetime]
+
+
+class DiscoveryStats(BaseModel):
+    total_matches: int
+    applied: int
+    pending_notify: int
+    failed: int
+    dismissed: int
+
+
+class DiscoveryObservability(BaseModel):
+    jobs_new_today: int
+    matches_dispatched_today: int
+    auto_apply_success_rate_7d: Optional[float]
+    auto_apply_attempts_7d: int
+    auto_apply_succeeded_7d: int
