@@ -35,6 +35,38 @@ CONCURRENCY = 20
 PROBE_TIMEOUT = 5.0
 YC_FETCH_TIMEOUT = 30.0
 
+# A hit is accepted as a real Indian company only when both hold:
+#   - at least MIN_INDIA_JOBS of the board's jobs match the India pattern
+#   - india_rate >= MIN_INDIA_RATE
+# This filters out slug collisions where the slug owns a big US/global board.
+MIN_INDIA_JOBS = 1
+MIN_INDIA_RATE = 0.5
+
+INDIA_LOCATION_RE = re.compile(
+    r"\b("
+    r"india|"
+    r"bangalore|bengaluru|"
+    r"mumbai|bombay|"
+    r"delhi|new delhi|"
+    r"gurgaon|gurugram|"
+    r"noida|"
+    r"hyderabad|"
+    r"pune|"
+    r"chennai|madras|"
+    r"kolkata|calcutta|"
+    r"ahmedabad|jaipur|"
+    r"kochi|cochin|kerala|"
+    r"chandigarh|indore|"
+    r"coimbatore|"
+    r"trivandrum|thiruvananthapuram"
+    r")\b",
+    re.IGNORECASE,
+)
+
+
+def _is_india_location(loc: str) -> bool:
+    return bool(loc) and INDIA_LOCATION_RE.search(loc) is not None
+
 OUTPUT_PATH = (
     Path(__file__).resolve().parent.parent / "backend" / "data" / "companies.json"
 )
@@ -176,8 +208,8 @@ async def fetch_yc_indian_names(client: httpx.AsyncClient) -> list[str]:
 
 async def _probe_greenhouse(
     client: httpx.AsyncClient, sem: asyncio.Semaphore, slug: str
-) -> Optional[int]:
-    """Returns count of live jobs if board exists with at least one job, else None."""
+) -> Optional[tuple[int, int]]:
+    """Returns (total_jobs, india_jobs) if board has jobs, else None."""
     async with sem:
         try:
             r = await client.get(
@@ -191,13 +223,21 @@ async def _probe_greenhouse(
         jobs = r.json().get("jobs") or []
     except Exception:
         return None
-    return len(jobs) if jobs else None
+    if not jobs:
+        return None
+    india = 0
+    for j in jobs:
+        loc_obj = j.get("location") or {}
+        loc = loc_obj.get("name", "") if isinstance(loc_obj, dict) else str(loc_obj)
+        if _is_india_location(loc):
+            india += 1
+    return len(jobs), india
 
 
 async def _probe_lever(
     client: httpx.AsyncClient, sem: asyncio.Semaphore, slug: str
-) -> Optional[int]:
-    """Returns count of postings if Lever board has at least one, else None."""
+) -> Optional[tuple[int, int]]:
+    """Returns (total_postings, india_postings) if board has postings, else None."""
     async with sem:
         try:
             r = await client.get(
@@ -213,7 +253,20 @@ async def _probe_lever(
         return None
     if not isinstance(postings, list) or not postings:
         return None
-    return len(postings)
+    india = 0
+    for p in postings:
+        cats = p.get("categories") or {}
+        loc = cats.get("location", "") if isinstance(cats, dict) else ""
+        if _is_india_location(loc):
+            india += 1
+    return len(postings), india
+
+
+def _passes_india_filter(total: int, india: int) -> bool:
+    """Accept the hit as 'India-focused' only if both thresholds are met."""
+    if total <= 0 or india < MIN_INDIA_JOBS:
+        return False
+    return (india / total) >= MIN_INDIA_RATE
 
 
 async def find_company_ats(
@@ -221,7 +274,8 @@ async def find_company_ats(
     sem: asyncio.Semaphore,
     name: str,
 ) -> tuple[str, Optional[dict]]:
-    """Try slug variants until one hits Greenhouse or Lever. First hit wins."""
+    """Try slug variants until one hits Greenhouse or Lever AND passes the
+    India-location filter. First passing hit wins."""
     try:
         for slug in slug_candidates(name):
             gh, lv = await asyncio.gather(
@@ -229,12 +283,27 @@ async def find_company_ats(
                 _probe_lever(client, sem, slug),
                 return_exceptions=False,
             )
-            if gh:
-                return name, {"name": name, "ats": "greenhouse", "slug": slug, "live_jobs": gh}
-            if lv:
-                return name, {"name": name, "ats": "lever", "slug": slug, "live_jobs": lv}
+            if gh is not None:
+                total, india = gh
+                if _passes_india_filter(total, india):
+                    return name, {
+                        "name": name,
+                        "ats": "greenhouse",
+                        "slug": slug,
+                        "live_jobs": total,
+                        "india_jobs": india,
+                    }
+            if lv is not None:
+                total, india = lv
+                if _passes_india_filter(total, india):
+                    return name, {
+                        "name": name,
+                        "ats": "lever",
+                        "slug": slug,
+                        "live_jobs": total,
+                        "india_jobs": india,
+                    }
     except Exception:
-        # One company crashing must not affect others.
         pass
     return name, None
 
@@ -295,8 +364,9 @@ async def main() -> int:
                 else:
                     lv_count += 1
                 slug_disp = f"{result['ats']}:{result['slug']}"
+                jobs_disp = f"{result['india_jobs']}/{result['live_jobs']} in India"
                 print(
-                    f"  ✅ {name[:30]:<30} → {slug_disp:<32} ({result['live_jobs']} jobs)",
+                    f"  ✅ {name[:30]:<30} → {slug_disp:<32} ({jobs_disp})",
                     flush=True,
                 )
 
