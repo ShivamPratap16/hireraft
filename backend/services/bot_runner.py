@@ -130,3 +130,42 @@ async def run_selected_platforms(platforms: list[str], user_id: str) -> str:
     for platform in platforms:
         await run_platform(platform, run_id, user_id)
     return run_id
+
+
+# ─── Slice-1 discovery additions ─────────────────────────────────────────
+
+from backend.bots.ats_base import AtsApplyBot
+from backend.bots.greenhouse import GreenhouseBot
+from backend.bots.lever import LeverBot
+from backend.models import Job, Profile
+
+
+ATS_BOT_MAP: dict[str, type[AtsApplyBot]] = {
+    "greenhouse": GreenhouseBot,
+    "lever": LeverBot,
+}
+
+
+async def run_one_job(ats: str, run_id: str, user_id: str, job: Job) -> bool:
+    """Single-job apply flow for ATS-discovered postings."""
+    bot_cls = ATS_BOT_MAP.get(ats)
+    if bot_cls is None:
+        await log_service.log(run_id, ats, "error", f"no bot for ats={ats}", user_id)
+        return False
+
+    profile = await Profile.find_one(Profile.user_id == user_id)
+    if profile is None:
+        await log_service.log(
+            run_id, ats, "error",
+            "no profile — complete profile to enable auto-apply",
+            user_id,
+        )
+        return False
+
+    g = await GlobalSetting.find_one(GlobalSetting.user_id == user_id)
+    if g is None or not g.resume_path:
+        await log_service.log(run_id, ats, "error", "no resume uploaded", user_id)
+        return False
+
+    bot = bot_cls(run_id=run_id, user_id=user_id, job=job, profile=profile, resume_path=g.resume_path)
+    return await bot.run()
