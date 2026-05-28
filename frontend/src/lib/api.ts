@@ -38,7 +38,16 @@ export interface PlatformSetting {
   password: string; daily_limit: number; keywords: string; role: string
   location: string; experience: string
 }
-export interface GlobalSetting { id: string; resume_path: string; schedule_time: string; schedule_enabled: boolean }
+export interface GlobalSetting {
+  id: string
+  resume_path: string
+  schedule_time: string
+  schedule_enabled: boolean
+  discovery_enabled?: boolean
+  auto_apply_threshold?: number
+  notify_threshold?: number
+  discovery_daily_cap?: number
+}
 export interface RunLog { id: string; run_id: string; platform: string; level: string; message: string; timestamp: string | null }
 export interface Stats { total: number; by_status: Record<string, number>; by_platform: Record<string, number>; follow_ups_due?: number }
 export interface Analytics {
@@ -84,6 +93,49 @@ export interface AdminAnalytics {
   by_platform: Record<string, number>; by_status: Record<string, number>
   error_trend: { date: string; count: number }[]
   registration_trend: { date: string; count: number }[]
+}
+
+// ─── Slice-1 discovery ─────────────────────────────────────────────────────
+export interface CompanyRead {
+  id: string
+  name: string
+  ats: string
+  slug: string
+  active: boolean
+  last_synced_at: string | null
+  last_sync_error: string
+  created_at: string
+}
+
+export interface MatchFeedItem {
+  id: string
+  job_title: string
+  company_name: string
+  location: string
+  job_url: string
+  ats: string
+  score: number
+  matched_terms: string[]
+  decision: 'auto_apply' | 'notify'
+  state: 'pending' | 'applied' | 'failed' | 'dismissed'
+  created_at: string
+  applied_at: string | null
+}
+
+export interface DiscoveryStats {
+  total_matches: number
+  applied: number
+  pending_notify: number
+  failed: number
+  dismissed: number
+}
+
+export interface DiscoveryObservability {
+  jobs_new_today: number
+  matches_dispatched_today: number
+  auto_apply_success_rate_7d: number | null
+  auto_apply_attempts_7d: number
+  auto_apply_succeeded_7d: number
 }
 
 // ─── API ───────────────────────────────────────────────────────────────────
@@ -156,4 +208,36 @@ export const api = {
   getProfile: () => request<ProfileData>('/profile'),
   updateProfile: (data: Partial<ProfileData>) =>
     request<ProfileData>('/profile', { method: 'PUT', body: JSON.stringify(data) }),
+
+  // Discovery (user-facing)
+  getDiscoveryFeed: (state?: string, page = 1, limit = 50) => {
+    const qs = new URLSearchParams()
+    if (state) qs.set('state', state)
+    qs.set('page', String(page))
+    qs.set('limit', String(limit))
+    return request<MatchFeedItem[]>(`/discovery/feed?${qs}`)
+  },
+  getDiscoveryStats: () => request<DiscoveryStats>('/discovery/stats'),
+  applyMatch: (id: string) =>
+    request<{ ok: boolean; message: string }>(`/discovery/matches/${id}/apply`, { method: 'POST' }),
+  dismissMatch: (id: string) =>
+    request<{ ok: boolean }>(`/discovery/matches/${id}/dismiss`, { method: 'POST' }),
+  rematch: () =>
+    request<{ ok: boolean; scored_jobs: number; matches: number }>('/discovery/rematch', { method: 'POST' }),
+
+  // Admin: companies
+  listCompanies: (ats?: string) =>
+    request<CompanyRead[]>(`/admin/companies${ats ? `?ats=${ats}` : ''}`),
+  createCompany: (body: { name: string; ats: string; slug: string }) =>
+    request<CompanyRead>('/admin/companies', { method: 'POST', body: JSON.stringify(body) }),
+  updateCompany: (id: string, body: { active?: boolean; name?: string; slug?: string }) =>
+    request<CompanyRead>(`/admin/companies/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
+  deleteCompany: (id: string) =>
+    request<{ ok: boolean }>(`/admin/companies/${id}`, { method: 'DELETE' }),
+  seedCompanies: () =>
+    request<{ created: number; updated: number; total: number }>('/admin/companies/seed', { method: 'POST' }),
+  triggerDiscoverySync: () =>
+    request<{ ok: boolean; message: string }>('/admin/discovery/sync', { method: 'POST' }),
+  getDiscoveryObservability: () =>
+    request<DiscoveryObservability>('/admin/discovery/observability'),
 }

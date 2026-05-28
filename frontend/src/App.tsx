@@ -15,12 +15,14 @@ import AdminDashboard from './pages/admin/AdminDashboard'
 import AdminUsers from './pages/admin/AdminUsers'
 import AdminActivity from './pages/admin/AdminActivity'
 import AdminAnalytics from './pages/admin/AdminAnalytics'
+import AdminCompanies from './pages/admin/AdminCompanies'
+import Discovery from './pages/Discovery'
 import { useAuth } from './lib/auth'
 import { api } from './lib/api'
 import { Avatar, ThemeToggle } from './components/ui'
 import {
   LayoutDashboard, Bot, ScrollText, LogOut, UserCircle,
-  Menu, X, Zap, Bell, ShieldAlert
+  Menu, X, Zap, Bell, ShieldAlert, Compass
 } from 'lucide-react'
 import { format } from 'date-fns'
 
@@ -28,6 +30,7 @@ const NAV = [
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/profile', label: 'Profile', icon: UserCircle },
   { to: '/automation', label: 'Automation', icon: Bot },
+  { to: '/discovery', label: 'Discovery', icon: Compass },
   { to: '/logs', label: 'Logs', icon: ScrollText },
 ]
 
@@ -378,11 +381,13 @@ export default function App() {
         <Route path="users" element={<AdminUsers />} />
         <Route path="activity" element={<AdminActivity />} />
         <Route path="analytics" element={<AdminAnalytics />} />
+        <Route path="companies" element={<AdminCompanies />} />
       </Route>
       <Route element={<ProtectedLayout />}>
         <Route path="dashboard" element={<Dashboard />} />
         <Route path="profile" element={<Profile />} />
         <Route path="automation" element={<Settings />} />
+        <Route path="discovery" element={<Discovery />} />
         <Route path="logs" element={<Logs />} />
       </Route>
       <Route path="*" element={<NotFoundRedirect />} />

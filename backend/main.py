@@ -14,6 +14,7 @@ from backend.api.profile import router as profile_router
 from backend.api.runs import router as runs_router
 from backend.api.notifications import router as notifications_router
 from backend.api.admin import router as admin_router
+from backend.api.discovery import router as discovery_router
 from backend.config import RESUME_DIR
 
 
@@ -49,5 +50,6 @@ app.include_router(profile_router, prefix="/api")
 app.include_router(runs_router, prefix="/api")
 app.include_router(notifications_router, prefix="/api")
 app.include_router(admin_router, prefix="/api")
+app.include_router(discovery_router, prefix="/api")
 
 app.mount("/resumes", StaticFiles(directory=str(RESUME_DIR)), name="resumes")

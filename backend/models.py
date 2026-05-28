@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
 from beanie import Document, Indexed
 from pydantic import Field
+from pymongo import IndexModel
 from typing import Optional
 
 def utcnow():
@@ -48,7 +49,7 @@ class Application(Document):
         name = "applications"
 
 class RunLog(Document):
-    user_id: Indexed(str)
+    user_id: Optional[str] = None       # None for system-level logs (e.g. discovery_cycle)
     run_id: str
     platform: str = ""
     level: str = "info"
@@ -57,12 +58,19 @@ class RunLog(Document):
 
     class Settings:
         name = "run_logs"
+        indexes = ["user_id"]
 
 class GlobalSetting(Document):
     user_id: Indexed(str)
     resume_path: str = ""
     schedule_time: str = "09:00"
     schedule_enabled: bool = True
+    # --- slice-1 discovery additions ---
+    discovery_enabled: bool = True
+    auto_apply_threshold: float = 0.9
+    notify_threshold: float = 0.6
+    discovery_daily_cap: int = 20
+    last_rematch_at: Optional[datetime] = None
 
     class Settings:
         name = "global_settings"
@@ -123,3 +131,64 @@ class Profile(Document):
 
     class Settings:
         name = "profiles"
+
+
+# ─── Slice-1 discovery collections ────────────────────────────────────────
+
+class Company(Document):
+    name: str
+    ats: str                                  # "greenhouse" | "lever"
+    slug: Indexed(str)
+    active: bool = True
+    last_synced_at: Optional[datetime] = None
+    last_sync_error: str = ""
+    created_at: datetime = Field(default_factory=utcnow)
+
+    class Settings:
+        name = "companies"
+        indexes = [
+            IndexModel([("ats", 1), ("slug", 1)], unique=True),
+        ]
+
+
+class Job(Document):
+    external_id: Indexed(str, unique=True)     # "greenhouse:swiggy:4001234"
+    ats: str                                    # "greenhouse" | "lever"
+    company_slug: str
+    company_name: str
+    title: str
+    description: str = ""
+    description_hash: str = ""
+    location: str = ""
+    job_url: str
+    status: str = "active"                      # "active" | "closed"
+    first_seen_at: datetime = Field(default_factory=utcnow)
+    last_seen_at: datetime = Field(default_factory=utcnow)
+    closed_at: Optional[datetime] = None
+    raw: dict = Field(default_factory=dict)
+
+    class Settings:
+        name = "jobs"
+        indexes = [
+            "status",
+            "ats",
+            [("company_slug", 1), ("status", 1)],
+        ]
+
+
+class JobMatch(Document):
+    user_id: Indexed(str)
+    job_id: str
+    score: float
+    matched_terms: list[str] = []
+    decision: str                               # "auto_apply" | "notify"
+    state: str = "pending"                      # pending | applied | failed | dismissed
+    created_at: datetime = Field(default_factory=utcnow)
+    applied_at: Optional[datetime] = None
+
+    class Settings:
+        name = "job_matches"
+        indexes = [
+            IndexModel([("user_id", 1), ("job_id", 1)], unique=True),
+            "state",
+        ]

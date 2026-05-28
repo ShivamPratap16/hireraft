@@ -1,8 +1,16 @@
+import asyncio
+import json
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
+
 from fastapi import APIRouter, Depends, HTTPException, Body
 from backend.auth import get_current_user
-from backend.models import User, Application, BotRun, RunLog, PlatformSetting, GlobalSetting, Profile, Notification
+from backend.models import User, Application, BotRun, RunLog, PlatformSetting, GlobalSetting, Profile, Notification, Company, Job, JobMatch
 from backend.config import decrypt
+from backend.schemas import (
+    CompanyRead, CompanyCreate, CompanyUpdate, CompanySeedItem,
+    DiscoveryObservability,
+)
 from pydantic import BaseModel
 from beanie import PydanticObjectId
 from typing import Optional
@@ -380,3 +388,133 @@ async def get_admin_analytics(admin: User = Depends(get_current_admin)):
         "error_trend": error_series,
         "registration_trend": reg_series,
     }
+
+
+# ─── Slice-1 discovery: Companies CRUD + seed + sync trigger ──────────────
+
+def _company_to_read(c: Company) -> CompanyRead:
+    return CompanyRead(
+        id=str(c.id),
+        name=c.name,
+        ats=c.ats,
+        slug=c.slug,
+        active=c.active,
+        last_synced_at=c.last_synced_at,
+        last_sync_error=c.last_sync_error,
+        created_at=c.created_at,
+    )
+
+
+@router.get("/admin/companies", response_model=list[CompanyRead])
+async def list_companies(
+    ats: Optional[str] = None,
+    active: Optional[bool] = None,
+    admin: User = Depends(get_current_admin),
+):
+    query: dict = {}
+    if ats is not None:
+        query["ats"] = ats
+    if active is not None:
+        query["active"] = active
+    companies = await Company.find(query).to_list()
+    return [_company_to_read(c) for c in companies]
+
+
+@router.post("/admin/companies", response_model=CompanyRead)
+async def create_company(body: CompanyCreate, admin: User = Depends(get_current_admin)):
+    if body.ats not in ("greenhouse", "lever"):
+        raise HTTPException(400, "ats must be 'greenhouse' or 'lever'")
+    existing = await Company.find_one(Company.ats == body.ats, Company.slug == body.slug)
+    if existing:
+        raise HTTPException(409, "company with this ats+slug already exists")
+    co = await Company(name=body.name, ats=body.ats, slug=body.slug).insert()
+    return _company_to_read(co)
+
+
+@router.patch("/admin/companies/{cid}", response_model=CompanyRead)
+async def update_company(
+    cid: str,
+    body: CompanyUpdate,
+    admin: User = Depends(get_current_admin),
+):
+    co = await Company.get(PydanticObjectId(cid))
+    if co is None:
+        raise HTTPException(404, "not found")
+    if body.active is not None:
+        co.active = body.active
+    if body.name is not None:
+        co.name = body.name
+    if body.slug is not None:
+        co.slug = body.slug
+    await co.save()
+    return _company_to_read(co)
+
+
+@router.delete("/admin/companies/{cid}")
+async def delete_company(cid: str, admin: User = Depends(get_current_admin)):
+    co = await Company.get(PydanticObjectId(cid))
+    if co is None:
+        raise HTTPException(404, "not found")
+    await co.delete()
+    return {"ok": True}
+
+
+@router.post("/admin/companies/seed")
+async def seed_companies(admin: User = Depends(get_current_admin)):
+    """Idempotent — upserts on (ats, slug) from backend/data/companies.json."""
+    seed_path = Path(__file__).resolve().parent.parent / "data" / "companies.json"
+    if not seed_path.exists():
+        raise HTTPException(404, f"seed file not found at {seed_path}")
+    items = [CompanySeedItem(**x) for x in json.loads(seed_path.read_text())]
+    created = 0
+    updated = 0
+    for item in items:
+        existing = await Company.find_one(Company.ats == item.ats, Company.slug == item.slug)
+        if existing:
+            existing.name = item.name
+            await existing.save()
+            updated += 1
+        else:
+            await Company(name=item.name, ats=item.ats, slug=item.slug).insert()
+            created += 1
+    return {"created": created, "updated": updated, "total": len(items)}
+
+
+@router.post("/admin/discovery/sync")
+async def trigger_sync(admin: User = Depends(get_current_admin)):
+    """Manual trigger for the full discovery cycle. Dev/debug aid."""
+    from backend.scheduler import discovery_cycle
+    asyncio.create_task(discovery_cycle())
+    return {"ok": True, "message": "discovery cycle scheduled"}
+
+
+@router.get("/admin/discovery/observability", response_model=DiscoveryObservability)
+async def discovery_observability(admin: User = Depends(get_current_admin)):
+    now = datetime.now(timezone.utc)
+    start_of_today = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    seven_days_ago = now - timedelta(days=7)
+
+    jobs_new_today = await Job.find(Job.first_seen_at >= start_of_today).count()
+    matches_dispatched_today = await JobMatch.find(JobMatch.created_at >= start_of_today).count()
+
+    auto_attempts = await JobMatch.find(
+        JobMatch.decision == "auto_apply",
+        JobMatch.created_at >= seven_days_ago,
+    ).count()
+    auto_succeeded = await JobMatch.find(
+        JobMatch.decision == "auto_apply",
+        JobMatch.state == "applied",
+        JobMatch.created_at >= seven_days_ago,
+    ).count()
+
+    rate: Optional[float] = None
+    if auto_attempts > 0:
+        rate = round(auto_succeeded / auto_attempts, 3)
+
+    return DiscoveryObservability(
+        jobs_new_today=jobs_new_today,
+        matches_dispatched_today=matches_dispatched_today,
+        auto_apply_success_rate_7d=rate,
+        auto_apply_attempts_7d=auto_attempts,
+        auto_apply_succeeded_7d=auto_succeeded,
+    )

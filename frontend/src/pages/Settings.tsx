@@ -96,7 +96,14 @@ export default function Settings() {
   const { toast } = useToast()
 
   const globalMutation = useMutation({
-    mutationFn: (data: { schedule_time?: string; schedule_enabled?: boolean }) => api.updateGlobalSettings(data),
+    mutationFn: (data: {
+      schedule_time?: string
+      schedule_enabled?: boolean
+      discovery_enabled?: boolean
+      auto_apply_threshold?: number
+      notify_threshold?: number
+      discovery_daily_cap?: number
+    }) => api.updateGlobalSettings(data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['globalSettings'] })
       toast('success', 'Global settings saved')
@@ -109,10 +116,20 @@ export default function Settings() {
   const [resumeFile, setResumeFile] = useState<File | null>(null)
   const [uploading, setUploading] = useState(false)
 
+  // Discovery (slice-1) — defaults pulled from server when global loads
+  const [discoveryEnabled, setDiscoveryEnabled] = useState<boolean | null>(null)
+  const [autoApplyThreshold, setAutoApplyThreshold] = useState<number | null>(null)
+  const [notifyThreshold, setNotifyThreshold] = useState<number | null>(null)
+  const [discoveryDailyCap, setDiscoveryDailyCap] = useState<number | null>(null)
+
   const handleGlobalSave = () => {
     globalMutation.mutate({
       schedule_time: scheduleTime || undefined,
       schedule_enabled: scheduleEnabled,
+      discovery_enabled: discoveryEnabled ?? undefined,
+      auto_apply_threshold: autoApplyThreshold ?? undefined,
+      notify_threshold: notifyThreshold ?? undefined,
+      discovery_daily_cap: discoveryDailyCap ?? undefined,
     })
   }
 
@@ -209,6 +226,75 @@ export default function Settings() {
             onUpload={handleUpload}
             uploading={uploading}
           />
+        </div>
+
+        <div className="border-t border-[var(--border)]/60 pt-6 mt-6">
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-3">
+            Discovery (Greenhouse + Lever)
+          </p>
+          <p className="text-xs text-[var(--text-muted)] mb-4">
+            Auto-apply settings for jobs found by the discovery engine.
+          </p>
+
+          <label className="flex items-center gap-3 mb-5 cursor-pointer">
+            <ToggleSwitch
+              checked={discoveryEnabled ?? global?.discovery_enabled ?? true}
+              onChange={setDiscoveryEnabled}
+            />
+            <span className="text-sm text-[var(--text-secondary)]">Enable discovery for my account</span>
+          </label>
+
+          <div className="space-y-5 max-w-md">
+            <div>
+              <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">
+                Auto-apply threshold: {((autoApplyThreshold ?? global?.auto_apply_threshold ?? 0.9)).toFixed(2)}
+              </label>
+              <input
+                type="range"
+                min={0.5}
+                max={1.0}
+                step={0.05}
+                value={autoApplyThreshold ?? global?.auto_apply_threshold ?? 0.9}
+                onChange={(e) => setAutoApplyThreshold(parseFloat(e.target.value))}
+                className="w-full"
+              />
+              <p className="text-[11px] text-[var(--text-muted)] mt-0.5">
+                Matches at or above this score are applied automatically.
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">
+                Notify threshold: {((notifyThreshold ?? global?.notify_threshold ?? 0.6)).toFixed(2)}
+              </label>
+              <input
+                type="range"
+                min={0.3}
+                max={0.95}
+                step={0.05}
+                value={notifyThreshold ?? global?.notify_threshold ?? 0.6}
+                onChange={(e) => setNotifyThreshold(parseFloat(e.target.value))}
+                className="w-full"
+              />
+              <p className="text-[11px] text-[var(--text-muted)] mt-0.5">
+                Below-auto matches at or above this score show up in your feed.
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">
+                Daily auto-apply cap (Greenhouse + Lever combined)
+              </label>
+              <input
+                type="number"
+                min={0}
+                max={200}
+                value={discoveryDailyCap ?? global?.discovery_daily_cap ?? 20}
+                onChange={(e) => setDiscoveryDailyCap(parseInt(e.target.value, 10) || 0)}
+                className={selectClass + ' max-w-[120px]'}
+              />
+            </div>
+          </div>
         </div>
       </SectionCard>
 
