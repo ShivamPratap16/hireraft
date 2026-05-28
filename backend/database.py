@@ -18,6 +18,9 @@ async def init_db():
         backend.models.BotRun,
         backend.models.Notification,
         backend.models.Profile,
+        backend.models.Company,
+        backend.models.Job,
+        backend.models.JobMatch,
     ])
 
 async def get_db():
