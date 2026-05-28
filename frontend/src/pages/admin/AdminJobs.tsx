@@ -8,18 +8,19 @@ export default function AdminJobs() {
   const [ats, setAts] = useState('')
   const [status, setStatus] = useState('active')
   const [companySlug, setCompanySlug] = useState('')
+  const [region, setRegion] = useState<'' | 'india' | 'foreign'>('')
   const [page, setPage] = useState(1)
   const pageSize = 50
 
-  // Debounce-free; React Query handles request cancellation.
   const { data, isLoading } = useQuery({
-    queryKey: ['admin-jobs', q, ats, status, companySlug, page],
+    queryKey: ['admin-jobs', q, ats, status, companySlug, region, page],
     queryFn: () =>
       api.listJobs({
         q: q || undefined,
         ats: ats || undefined,
         status: status || undefined,
         company_slug: companySlug || undefined,
+        region: region || undefined,
         page,
         page_size: pageSize,
       }),
@@ -34,6 +35,26 @@ export default function AdminJobs() {
         <p className="text-sm text-[var(--text-muted)]">
           {data ? `${data.total.toLocaleString()} job${data.total === 1 ? '' : 's'}` : ''}
         </p>
+      </div>
+
+      <div className="mb-4 flex gap-1 items-center text-xs">
+        {([
+          { key: '', label: 'All regions' },
+          { key: 'india', label: 'India' },
+          { key: 'foreign', label: 'Foreign' },
+        ] as const).map((opt) => (
+          <button
+            key={opt.key}
+            onClick={() => { setRegion(opt.key); setPage(1) }}
+            className={`px-3 py-1.5 rounded-lg font-medium transition-colors ${
+              region === opt.key
+                ? 'bg-brand-500 text-white'
+                : 'border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+            }`}
+          >
+            {opt.label}
+          </button>
+        ))}
       </div>
 
       <div className="border border-[var(--border)] rounded-xl p-4 mb-4 flex flex-wrap gap-3 items-end">

@@ -263,7 +263,7 @@ export const api = {
     request<{ ok: boolean; message: string }>('/admin/discovery/sync', { method: 'POST' }),
   getDiscoveryObservability: () =>
     request<DiscoveryObservability>('/admin/discovery/observability'),
-  listJobs: (params: { ats?: string; status?: string; company_slug?: string; q?: string; page?: number; page_size?: number } = {}) => {
+  listJobs: (params: { ats?: string; status?: string; company_slug?: string; q?: string; region?: 'india' | 'foreign'; page?: number; page_size?: number } = {}) => {
     const qs = new URLSearchParams()
     for (const [k, v] of Object.entries(params)) {
       if (v === undefined || v === null || v === '') continue
