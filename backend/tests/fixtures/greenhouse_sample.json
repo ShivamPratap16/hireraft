@@ -1,0 +1,24 @@
+{
+  "jobs": [
+    {
+      "id": 4001234,
+      "title": "Backend Engineer",
+      "absolute_url": "https://boards.greenhouse.io/swiggy/jobs/4001234",
+      "location": {"name": "Bangalore, India"},
+      "content": "<p>We&#39;re looking for a <b>backend engineer</b> to work on our delivery platform. Python, FastAPI, microservices.</p>",
+      "updated_at": "2026-05-28T10:00:00Z",
+      "departments": [{"name": "Engineering"}],
+      "metadata": []
+    },
+    {
+      "id": 4001235,
+      "title": "Frontend Engineer",
+      "absolute_url": "https://boards.greenhouse.io/swiggy/jobs/4001235",
+      "location": {"name": "Bangalore, India"},
+      "content": "<p>React, TypeScript</p>",
+      "updated_at": "2026-05-28T10:05:00Z",
+      "departments": [{"name": "Engineering"}],
+      "metadata": []
+    }
+  ]
+}

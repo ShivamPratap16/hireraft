@@ -1,0 +1,11 @@
+[
+  {
+    "id": "abc-123-def",
+    "text": "Senior Backend Engineer",
+    "hostedUrl": "https://jobs.lever.co/flexport/abc-123-def",
+    "categories": {"location": "San Francisco", "team": "Engineering"},
+    "description": "<p>Build the future of freight</p>",
+    "descriptionPlain": "Build the future of freight",
+    "createdAt": 1717000000000
+  }
+]
