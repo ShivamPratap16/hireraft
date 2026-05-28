@@ -16,6 +16,7 @@ import AdminUsers from './pages/admin/AdminUsers'
 import AdminActivity from './pages/admin/AdminActivity'
 import AdminAnalytics from './pages/admin/AdminAnalytics'
 import AdminCompanies from './pages/admin/AdminCompanies'
+import AdminJobs from './pages/admin/AdminJobs'
 import Discovery from './pages/Discovery'
 import { useAuth } from './lib/auth'
 import { api } from './lib/api'
@@ -382,6 +383,7 @@ export default function App() {
         <Route path="activity" element={<AdminActivity />} />
         <Route path="analytics" element={<AdminAnalytics />} />
         <Route path="companies" element={<AdminCompanies />} />
+        <Route path="jobs" element={<AdminJobs />} />
       </Route>
       <Route element={<ProtectedLayout />}>
         <Route path="dashboard" element={<Dashboard />} />

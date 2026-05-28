@@ -138,6 +138,29 @@ export interface DiscoveryObservability {
   auto_apply_succeeded_7d: number
 }
 
+export interface JobRead {
+  id: string
+  external_id: string
+  ats: string
+  company_slug: string
+  company_name: string
+  title: string
+  location: string
+  job_url: string
+  status: string
+  first_seen_at: string
+  last_seen_at: string
+  closed_at: string | null
+  description_preview: string
+}
+
+export interface JobsPage {
+  total: number
+  page: number
+  page_size: number
+  items: JobRead[]
+}
+
 // ─── API ───────────────────────────────────────────────────────────────────
 export const api = {
   // Admin
@@ -240,4 +263,12 @@ export const api = {
     request<{ ok: boolean; message: string }>('/admin/discovery/sync', { method: 'POST' }),
   getDiscoveryObservability: () =>
     request<DiscoveryObservability>('/admin/discovery/observability'),
+  listJobs: (params: { ats?: string; status?: string; company_slug?: string; q?: string; page?: number; page_size?: number } = {}) => {
+    const qs = new URLSearchParams()
+    for (const [k, v] of Object.entries(params)) {
+      if (v === undefined || v === null || v === '') continue
+      qs.set(k, String(v))
+    }
+    return request<JobsPage>(`/admin/jobs?${qs}`)
+  },
 }

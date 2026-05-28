@@ -1,12 +1,14 @@
 import { useState } from 'react'
 import { NavLink, Navigate, useLocation, Outlet, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../lib/auth'
-import { LayoutDashboard, Users, LogOut, ShieldAlert, Activity, BarChart3, Menu, X } from 'lucide-react'
+import { LayoutDashboard, Users, LogOut, ShieldAlert, Activity, BarChart3, Menu, X, Building2, Briefcase } from 'lucide-react'
 import { Avatar, ThemeToggle } from '../../components/ui'
 
 const NAV = [
   { to: '/admin/dashboard', label: 'Overview', icon: LayoutDashboard },
   { to: '/admin/users', label: 'Users', icon: Users },
+  { to: '/admin/companies', label: 'Companies', icon: Building2 },
+  { to: '/admin/jobs', label: 'Jobs', icon: Briefcase },
   { to: '/admin/activity', label: 'Activity Feed', icon: Activity },
   { to: '/admin/analytics', label: 'Analytics', icon: BarChart3 },
 ]
