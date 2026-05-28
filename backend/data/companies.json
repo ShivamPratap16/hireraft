@@ -1,0 +1,17 @@
+[
+  {"name": "Stripe", "ats": "greenhouse", "slug": "stripe"},
+  {"name": "Airbnb", "ats": "greenhouse", "slug": "airbnb"},
+  {"name": "Coinbase", "ats": "greenhouse", "slug": "coinbase"},
+  {"name": "Notion", "ats": "greenhouse", "slug": "notion"},
+  {"name": "Anthropic", "ats": "greenhouse", "slug": "anthropic"},
+  {"name": "OpenAI", "ats": "greenhouse", "slug": "openai"},
+  {"name": "DoorDash", "ats": "greenhouse", "slug": "doordash"},
+  {"name": "Robinhood", "ats": "greenhouse", "slug": "robinhood"},
+  {"name": "Figma", "ats": "greenhouse", "slug": "figma"},
+  {"name": "Postman", "ats": "greenhouse", "slug": "postman"},
+  {"name": "Flexport", "ats": "lever", "slug": "flexport"},
+  {"name": "Brex", "ats": "lever", "slug": "brex"},
+  {"name": "Mercury", "ats": "lever", "slug": "mercury"},
+  {"name": "Ramp", "ats": "lever", "slug": "ramp"},
+  {"name": "Linear", "ats": "lever", "slug": "linear"}
+]
