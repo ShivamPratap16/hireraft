@@ -211,6 +211,13 @@ ADAPTERS = {
     "smartrecruiters": fetch_smartrecruiters,
 }
 
+# Public list of discovery-channel platforms. The order matters — this is
+# what determines display order on the Settings UI. Discovery platforms use
+# public ATS APIs (no per-user credentials); the automation platforms
+# (LinkedIn / Indeed / Naukri / Internshala) live in backend/bots and need
+# username + password.
+DISCOVERY_PLATFORMS: list[str] = list(ADAPTERS.keys())
+
 
 async def sync_company(co: Company) -> tuple[list[str], list[str]]:
     """Returns (new_job_ids, changed_job_ids). Failures recorded on the Company."""

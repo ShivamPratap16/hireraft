@@ -6,7 +6,7 @@ import { Button, Input, Card, Badge, Select } from '../ui'
 import CityLocationField from '../CityLocationField'
 import KeywordTagField from '../KeywordTagField'
 import { Save, Eye, EyeOff, Briefcase } from 'lucide-react'
-import { getPlatformMeta } from './platformMeta'
+import { getPlatformMeta, isDiscoveryPlatform } from './platformMeta'
 import { YEARS_OPTIONS, MONTHS_OPTIONS, formatExperience, parseExperience } from './experienceUtils'
 import ToggleSwitch from './ToggleSwitch'
 import RoleMultiSelect from './RoleMultiSelect'
@@ -61,6 +61,7 @@ export default function PlatformAutomationCard({ setting }: { setting: PlatformS
   const [expMonths, setExpMonths] = useState(exp.months)
   const meta = getPlatformMeta(setting.platform)
   const { Icon } = meta
+  const isDiscovery = isDiscoveryPlatform(setting.platform)
 
   const mutation = useMutation({
     mutationFn: (data: Partial<PlatformSetting>) => api.updatePlatformSetting(setting.platform, data),
@@ -117,15 +118,28 @@ export default function PlatformAutomationCard({ setting }: { setting: PlatformS
         </div>
 
         <div className="space-y-0">
-          <p className="text-[11px] font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-3">Account</p>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Input
-              label="Username / Email"
-              value={form.username}
-              onChange={(e) => setForm({ ...form, username: e.target.value })}
-            />
-            <PasswordField value={form.password} onChange={(v) => setForm({ ...form, password: v })} />
-          </div>
+          {isDiscovery ? (
+            <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-2)]/40 px-4 py-3 mb-4">
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-1">
+                Discovery channel
+              </p>
+              <p className="text-xs text-[var(--text-secondary)]">
+                Public ATS API — no credentials needed. Set your keywords / role / location below and we'll surface matching jobs in the Discovery feed.
+              </p>
+            </div>
+          ) : (
+            <>
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-3">Account</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Input
+                  label="Username / Email"
+                  value={form.username}
+                  onChange={(e) => setForm({ ...form, username: e.target.value })}
+                />
+                <PasswordField value={form.password} onChange={(v) => setForm({ ...form, password: v })} />
+              </div>
+            </>
+          )}
 
           <div className="border-t border-[var(--border)]/60 pt-5 mt-5">
             <p className="text-[11px] font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-3">

@@ -21,7 +21,19 @@ def _gs_to_read(gs: GlobalSetting) -> GlobalSettingRead:
 async def get_platform_settings(
     user: User = Depends(get_current_user),
 ):
-    rows = await PlatformSetting.find({"user_id": str(user.id)}).sort("platform").to_list()
+    # Auto-create PlatformSetting rows for any canonical platform the user
+    # is missing — backfills existing users when new ATS adapters are added.
+    from backend.api.auth import _default_platforms
+    rows = await PlatformSetting.find({"user_id": str(user.id)}).to_list()
+    have = {r.platform for r in rows}
+    missing = [p for p in _default_platforms() if p not in have]
+    if missing:
+        await PlatformSetting.insert_many(
+            [PlatformSetting(user_id=str(user.id), platform=p) for p in missing]
+        )
+        rows = await PlatformSetting.find({"user_id": str(user.id)}).to_list()
+
+    rows.sort(key=lambda r: r.platform)
     items = []
     for r in rows:
         dto = _ps_to_read(r)
