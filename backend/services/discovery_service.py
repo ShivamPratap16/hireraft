@@ -102,9 +102,113 @@ async def fetch_lever(slug: str) -> list[NormalizedJob]:
         return [_normalize_lever(j) for j in r.json()]
 
 
+# ─── Ashby ────────────────────────────────────────────────────────────────
+
+def _normalize_ashby(job: dict) -> NormalizedJob:
+    return NormalizedJob(
+        external_id=str(job.get("id", "")),
+        title=(job.get("title") or "").strip(),
+        # Ashby gives plain text directly — no HTML stripping needed.
+        description=(job.get("descriptionPlain") or "").strip(),
+        location=(job.get("location") or "").strip(),
+        job_url=(job.get("jobUrl") or job.get("applyUrl") or "").strip(),
+        raw=job,
+    )
+
+
+async def fetch_ashby(slug: str) -> list[NormalizedJob]:
+    url = f"https://api.ashbyhq.com/posting-api/job-board/{slug}"
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        r = await client.get(url)
+        r.raise_for_status()
+        return [_normalize_ashby(j) for j in r.json().get("jobs", [])]
+
+
+# ─── Workable ─────────────────────────────────────────────────────────────
+
+def _workable_location(job: dict) -> str:
+    """Workable returns both a flat `country/city/state` and a structured
+    `locations` array. Prefer the array's first entry; fall back to flat."""
+    locations = job.get("locations") or []
+    if locations and isinstance(locations, list):
+        loc = locations[0] if isinstance(locations[0], dict) else {}
+        parts = [loc.get("city") or "", loc.get("region") or "", loc.get("country") or ""]
+    else:
+        parts = [job.get("city") or "", job.get("state") or "", job.get("country") or ""]
+    return ", ".join(p for p in parts if p)
+
+
+def _normalize_workable(job: dict) -> NormalizedJob:
+    return NormalizedJob(
+        external_id=str(job.get("shortcode") or job.get("id") or ""),
+        title=(job.get("title") or "").strip(),
+        # The widget endpoint omits description; matching falls back to title + location.
+        description="",
+        location=_workable_location(job),
+        job_url=(job.get("url") or job.get("shortlink") or "").strip(),
+        raw=job,
+    )
+
+
+async def fetch_workable(slug: str) -> list[NormalizedJob]:
+    url = f"https://apply.workable.com/api/v1/widget/accounts/{slug}"
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        r = await client.get(url)
+        r.raise_for_status()
+        return [_normalize_workable(j) for j in (r.json().get("jobs") or [])]
+
+
+# ─── SmartRecruiters ──────────────────────────────────────────────────────
+
+def _sr_location(posting: dict) -> str:
+    loc = posting.get("location") or {}
+    if not isinstance(loc, dict):
+        return ""
+    parts = [loc.get("city") or "", loc.get("region") or "", loc.get("country") or ""]
+    return ", ".join(p for p in parts if p)
+
+
+def _normalize_smartrecruiters(posting: dict, company_slug: str) -> NormalizedJob:
+    posting_id = str(posting.get("id", ""))
+    return NormalizedJob(
+        external_id=posting_id,
+        title=(posting.get("name") or "").strip(),
+        description="",  # not in list response
+        location=_sr_location(posting),
+        job_url=f"https://jobs.smartrecruiters.com/{company_slug}/{posting_id}",
+        raw=posting,
+    )
+
+
+async def fetch_smartrecruiters(slug: str) -> list[NormalizedJob]:
+    """SR paginates with offset/limit; loops until totalFound is reached."""
+    url = f"https://api.smartrecruiters.com/v1/companies/{slug}/postings"
+    out: list[NormalizedJob] = []
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        offset = 0
+        while True:
+            r = await client.get(url, params={"offset": offset, "limit": 100})
+            r.raise_for_status()
+            data = r.json()
+            content = data.get("content") or []
+            if not content:
+                break
+            out.extend(_normalize_smartrecruiters(p, slug) for p in content)
+            offset += len(content)
+            if offset >= int(data.get("totalFound", 0) or 0):
+                break
+            # safety brake against unbounded pagination
+            if offset > 5000:
+                break
+    return out
+
+
 ADAPTERS = {
     "greenhouse": fetch_greenhouse,
     "lever": fetch_lever,
+    "ashby": fetch_ashby,
+    "workable": fetch_workable,
+    "smartrecruiters": fetch_smartrecruiters,
 }
 
 

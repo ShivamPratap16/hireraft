@@ -3,8 +3,8 @@
     "name": "Paytm",
     "ats": "lever",
     "slug": "paytm",
-    "live_jobs": 172,
-    "india_jobs": 140
+    "live_jobs": 173,
+    "india_jobs": 141
   },
   {
     "name": "PhonePe",
@@ -40,6 +40,41 @@
     "slug": "cred",
     "live_jobs": 8,
     "india_jobs": 8
+  },
+  {
+    "name": "Unacademy",
+    "ats": "smartrecruiters",
+    "slug": "unacademy",
+    "live_jobs": 3,
+    "india_jobs": 3
+  },
+  {
+    "name": "Loop Health",
+    "ats": "smartrecruiters",
+    "slug": "loophealth",
+    "live_jobs": 1,
+    "india_jobs": 1
+  },
+  {
+    "name": "Statiq.",
+    "ats": "smartrecruiters",
+    "slug": "statiq",
+    "live_jobs": 1,
+    "india_jobs": 1
+  },
+  {
+    "name": "Kodo",
+    "ats": "smartrecruiters",
+    "slug": "kodo",
+    "live_jobs": 1,
+    "india_jobs": 1
+  },
+  {
+    "name": "Unschool",
+    "ats": "smartrecruiters",
+    "slug": "unschool",
+    "live_jobs": 1,
+    "india_jobs": 1
   },
   {
     "name": "Truecaller",

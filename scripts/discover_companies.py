@@ -30,6 +30,9 @@ YC_MIRROR_URL = "https://yc-oss.github.io/api/companies/all.json"
 
 GREENHOUSE_URL_TMPL = "https://boards-api.greenhouse.io/v1/boards/{slug}/jobs"
 LEVER_URL_TMPL = "https://api.lever.co/v0/postings/{slug}"
+ASHBY_URL_TMPL = "https://api.ashbyhq.com/posting-api/job-board/{slug}"
+WORKABLE_URL_TMPL = "https://apply.workable.com/api/v1/widget/accounts/{slug}"
+SMARTRECRUITERS_URL_TMPL = "https://api.smartrecruiters.com/v1/companies/{slug}/postings"
 
 CONCURRENCY = 20
 PROBE_TIMEOUT = 5.0
@@ -262,6 +265,110 @@ async def _probe_lever(
     return len(postings), india
 
 
+async def _probe_ashby(
+    client: httpx.AsyncClient, sem: asyncio.Semaphore, slug: str
+) -> Optional[tuple[int, int]]:
+    async with sem:
+        try:
+            r = await client.get(
+                ASHBY_URL_TMPL.format(slug=slug), timeout=PROBE_TIMEOUT
+            )
+        except Exception:
+            return None
+    if r.status_code != 200:
+        return None
+    try:
+        jobs = r.json().get("jobs") or []
+    except Exception:
+        return None
+    if not jobs:
+        return None
+    india = sum(1 for j in jobs if _is_india_location(j.get("location") or ""))
+    return len(jobs), india
+
+
+async def _probe_workable(
+    client: httpx.AsyncClient, sem: asyncio.Semaphore, slug: str
+) -> Optional[tuple[int, int]]:
+    async with sem:
+        try:
+            r = await client.get(
+                WORKABLE_URL_TMPL.format(slug=slug), timeout=PROBE_TIMEOUT
+            )
+        except Exception:
+            return None
+    if r.status_code != 200:
+        return None
+    try:
+        jobs = r.json().get("jobs") or []
+    except Exception:
+        return None
+    if not jobs:
+        return None
+    india = 0
+    for j in jobs:
+        # Workable splits location across country/city; also has a structured `locations` array.
+        locs = j.get("locations") or []
+        flat = " ".join(
+            str(j.get(k, "")) for k in ("country", "city", "state")
+        )
+        if _is_india_location(flat):
+            india += 1
+            continue
+        for loc in locs if isinstance(locs, list) else []:
+            if not isinstance(loc, dict):
+                continue
+            joined = " ".join(
+                str(loc.get(k, "")) for k in ("country", "city", "region")
+            )
+            if _is_india_location(joined):
+                india += 1
+                break
+    return len(jobs), india
+
+
+async def _probe_smartrecruiters(
+    client: httpx.AsyncClient, sem: asyncio.Semaphore, slug: str
+) -> Optional[tuple[int, int]]:
+    """Single page is enough at probe time — caps cost. India-rate from a
+    100-job sample is a good enough signal to pass/fail the filter."""
+    async with sem:
+        try:
+            r = await client.get(
+                SMARTRECRUITERS_URL_TMPL.format(slug=slug),
+                params={"offset": 0, "limit": 100},
+                timeout=PROBE_TIMEOUT,
+            )
+        except Exception:
+            return None
+    if r.status_code != 200:
+        return None
+    try:
+        data = r.json()
+    except Exception:
+        return None
+    content = data.get("content") or []
+    if not content:
+        return None
+    total = int(data.get("totalFound") or len(content))
+    india = 0
+    for p in content:
+        loc = p.get("location") or {}
+        if not isinstance(loc, dict):
+            continue
+        joined = " ".join(
+            str(loc.get(k, "")) for k in ("city", "region", "country")
+        )
+        if _is_india_location(joined):
+            india += 1
+    # If we sampled the first 100 and saw an India-rate, project it across totalFound
+    # to make _passes_india_filter consistent regardless of board size.
+    sampled = len(content)
+    if total > sampled and sampled > 0:
+        india = round(india * total / sampled)
+    return total, india
+
+
 def _passes_india_filter(total: int, india: int) -> bool:
     """Accept the hit as 'India-focused' only if both thresholds are met."""
     if total <= 0 or india < MIN_INDIA_JOBS:
@@ -269,36 +376,40 @@ def _passes_india_filter(total: int, india: int) -> bool:
     return (india / total) >= MIN_INDIA_RATE
 
 
+# Ordered so we prefer the cleanest APIs first when multiple match the same slug.
+_PROBES = (
+    ("greenhouse", _probe_greenhouse),
+    ("lever", _probe_lever),
+    ("ashby", _probe_ashby),
+    ("workable", _probe_workable),
+    ("smartrecruiters", _probe_smartrecruiters),
+)
+
+
 async def find_company_ats(
     client: httpx.AsyncClient,
     sem: asyncio.Semaphore,
     name: str,
 ) -> tuple[str, Optional[dict]]:
-    """Try slug variants until one hits Greenhouse or Lever AND passes the
-    India-location filter. First passing hit wins."""
+    """Try slug variants × all 5 ATS in parallel per slug. First passing hit wins.
+
+    A slug "hits" only if the response has live jobs AND >= MIN_INDIA_RATE of them
+    match the India location pattern — this filters slug-collision false positives.
+    """
     try:
         for slug in slug_candidates(name):
-            gh, lv = await asyncio.gather(
-                _probe_greenhouse(client, sem, slug),
-                _probe_lever(client, sem, slug),
+            results = await asyncio.gather(
+                *(probe(client, sem, slug) for _, probe in _PROBES),
                 return_exceptions=False,
             )
-            if gh is not None:
-                total, india = gh
+            for (ats, _), result in zip(_PROBES, results):
+                if result is None:
+                    continue
+                total, india = result
                 if _passes_india_filter(total, india):
                     return name, {
                         "name": name,
-                        "ats": "greenhouse",
-                        "slug": slug,
-                        "live_jobs": total,
-                        "india_jobs": india,
-                    }
-            if lv is not None:
-                total, india = lv
-                if _passes_india_filter(total, india):
-                    return name, {
-                        "name": name,
-                        "ats": "lever",
+                        "ats": ats,
                         "slug": slug,
                         "live_jobs": total,
                         "india_jobs": india,
@@ -348,21 +459,17 @@ async def main() -> int:
         ]
 
         hits: list[dict] = []
-        gh_count = 0
-        lv_count = 0
+        per_ats_count: dict[str, int] = {ats: 0 for ats, _ in _PROBES}
         miss_count = 0
 
         for fut in asyncio.as_completed(tasks):
             name, result = await fut
             if result is None:
                 miss_count += 1
-                print(f"  ❌ {name[:30]:<30} → not found on Greenhouse or Lever", flush=True)
+                print(f"  ❌ {name[:30]:<30} → not found on any ATS", flush=True)
             else:
                 hits.append(result)
-                if result["ats"] == "greenhouse":
-                    gh_count += 1
-                else:
-                    lv_count += 1
+                per_ats_count[result["ats"]] = per_ats_count.get(result["ats"], 0) + 1
                 slug_disp = f"{result['ats']}:{result['slug']}"
                 jobs_disp = f"{result['india_jobs']}/{result['live_jobs']} in India"
                 print(
@@ -377,8 +484,8 @@ async def main() -> int:
     print()
     print(bar)
     print(f"Candidates probed:   {len(candidates)}")
-    print(f"Found on Greenhouse: {gh_count}")
-    print(f"Found on Lever:      {lv_count}")
+    for ats, _ in _PROBES:
+        print(f"Found on {ats:<16} {per_ats_count.get(ats, 0)}")
     print(f"Not found:           {miss_count}  (likely Workday/Taleo/custom)")
     print(bar)
     print(f"Saved {len(hits)} companies → {OUTPUT_PATH.relative_to(Path.cwd()) if OUTPUT_PATH.is_relative_to(Path.cwd()) else OUTPUT_PATH}")
