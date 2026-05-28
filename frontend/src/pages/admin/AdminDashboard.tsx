@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { api } from '../../lib/api'
-import { Users, FileText, Activity, AlertTriangle, TrendingUp, Zap, CheckCircle } from 'lucide-react'
+import { Users, FileText, Activity, AlertTriangle, TrendingUp, Zap, CheckCircle, Compass, Send, Target } from 'lucide-react'
 
 function StatCard({ icon: Icon, label, value, color, sub }: {
   icon: any; label: string; value: number | string; color: string; sub?: string
@@ -30,6 +30,12 @@ export default function AdminDashboard() {
     refetchInterval: 10000,
   })
 
+  const { data: obs } = useQuery({
+    queryKey: ['discovery-observability'],
+    queryFn: api.getDiscoveryObservability,
+    refetchInterval: 60_000,
+  })
+
   if (isLoading) return <div className="flex items-center justify-center h-64 text-[var(--text-muted)] animate-pulse text-lg">Loading platform metrics...</div>
 
   return (
@@ -50,6 +56,30 @@ export default function AdminDashboard() {
         <StatCard icon={Zap} label="Apps Today" value={stats?.apps_today ?? 0} color="bg-amber-500/15 text-amber-500" />
         <StatCard icon={TrendingUp} label="Apps This Week" value={stats?.apps_this_week ?? 0} color="bg-cyan-500/15 text-cyan-500" />
         <StatCard icon={AlertTriangle} label="Total Errors" value={stats?.total_errors ?? 0} color="bg-red-500/15 text-red-500" />
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <StatCard
+          icon={Compass}
+          label="Jobs new today"
+          value={obs?.jobs_new_today ?? 0}
+          color="bg-indigo-500/15 text-indigo-400"
+          sub="From ATS sync"
+        />
+        <StatCard
+          icon={Send}
+          label="Matches dispatched today"
+          value={obs?.matches_dispatched_today ?? 0}
+          color="bg-teal-500/15 text-teal-400"
+          sub="Both auto-apply + notify"
+        />
+        <StatCard
+          icon={Target}
+          label="Auto-apply success (7d)"
+          value={obs?.auto_apply_success_rate_7d == null ? '—' : `${(obs.auto_apply_success_rate_7d * 100).toFixed(1)}%`}
+          color="bg-emerald-500/15 text-emerald-400"
+          sub={`${obs?.auto_apply_succeeded_7d ?? 0} / ${obs?.auto_apply_attempts_7d ?? 0} attempts`}
+        />
       </div>
 
       {/* Live Activity Preview */}

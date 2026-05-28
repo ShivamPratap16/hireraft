@@ -486,3 +486,35 @@ async def trigger_sync(admin: User = Depends(get_current_admin)):
     from backend.scheduler import discovery_cycle
     asyncio.create_task(discovery_cycle())
     return {"ok": True, "message": "discovery cycle scheduled"}
+
+
+@router.get("/admin/discovery/observability", response_model=DiscoveryObservability)
+async def discovery_observability(admin: User = Depends(get_current_admin)):
+    now = datetime.now(timezone.utc)
+    start_of_today = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    seven_days_ago = now - timedelta(days=7)
+
+    jobs_new_today = await Job.find(Job.first_seen_at >= start_of_today).count()
+    matches_dispatched_today = await JobMatch.find(JobMatch.created_at >= start_of_today).count()
+
+    auto_attempts = await JobMatch.find(
+        JobMatch.decision == "auto_apply",
+        JobMatch.created_at >= seven_days_ago,
+    ).count()
+    auto_succeeded = await JobMatch.find(
+        JobMatch.decision == "auto_apply",
+        JobMatch.state == "applied",
+        JobMatch.created_at >= seven_days_ago,
+    ).count()
+
+    rate: Optional[float] = None
+    if auto_attempts > 0:
+        rate = round(auto_succeeded / auto_attempts, 3)
+
+    return DiscoveryObservability(
+        jobs_new_today=jobs_new_today,
+        matches_dispatched_today=matches_dispatched_today,
+        auto_apply_success_rate_7d=rate,
+        auto_apply_attempts_7d=auto_attempts,
+        auto_apply_succeeded_7d=auto_succeeded,
+    )
