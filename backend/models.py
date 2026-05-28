@@ -49,7 +49,7 @@ class Application(Document):
         name = "applications"
 
 class RunLog(Document):
-    user_id: Indexed(str)
+    user_id: Optional[str] = None       # None for system-level logs (e.g. discovery_cycle)
     run_id: str
     platform: str = ""
     level: str = "info"
@@ -58,6 +58,7 @@ class RunLog(Document):
 
     class Settings:
         name = "run_logs"
+        indexes = ["user_id"]
 
 class GlobalSetting(Document):
     user_id: Indexed(str)
