@@ -1,21 +1,15 @@
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 
-from sqlalchemy import select
-
 _scheduler: AsyncIOScheduler | None = None
 
 
 async def scheduled_run():
-    from backend.database import async_session
     from backend.models import GlobalSetting
     from backend.services.bot_runner import run_all_enabled_platforms
 
-    async with async_session() as session:
-        result = await session.execute(
-            select(GlobalSetting.user_id).where(GlobalSetting.schedule_enabled == True)  # noqa: E712
-        )
-        user_ids = [row[0] for row in result.fetchall() if row[0] is not None]
+    settings = await GlobalSetting.find(GlobalSetting.schedule_enabled == True).to_list()  # noqa: E712
+    user_ids = [s.user_id for s in settings if s.user_id]
 
     for uid in user_ids:
         await run_all_enabled_platforms(uid)

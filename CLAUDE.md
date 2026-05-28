@@ -83,8 +83,6 @@ async def apply_to_job(self, page, job: dict) -> bool: ...
 
 `backend/services/bot_runner.py` is the orchestrator. `run_platform()` loads `PlatformSetting` for `(user_id, platform)`, decrypts the password via `config.decrypt()`, instantiates the bot from `BOT_MAP`, calls `bot.run()`, then writes a `BotRun` summary record and a notification.
 
-**Known bug:** `backend/scheduler.py` still imports `sqlalchemy` and `async_session` from a previous SQLAlchemy version of the app. `database.py` now uses Beanie/Motor exclusively, so the scheduler's `scheduled_run()` will raise `ImportError` at the first cron fire (9:00 AM daily by default). If you touch the scheduler, port it to Beanie before doing anything else.
-
 ### Data model (MongoDB via Beanie)
 
 All collections are registered in `backend/database.py:init_db`. Every per-user document carries an indexed `user_id: str` (string form of the User's ObjectId). The unique indexes worth knowing:
