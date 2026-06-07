@@ -86,7 +86,10 @@ async def _load_active_discovery_users() -> list[tuple]:
 
     settings = await PlatformSetting.find(
         In(PlatformSetting.user_id, ids),
-        In(PlatformSetting.platform, ["greenhouse", "lever"]),
+        In(
+            PlatformSetting.platform,
+            ["greenhouse", "lever", "ashby", "workable", "smartrecruiters"],
+        ),
         PlatformSetting.enabled == True,  # noqa: E712
     ).to_list()
     globals_ = await GlobalSetting.find(

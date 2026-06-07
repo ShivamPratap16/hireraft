@@ -158,7 +158,7 @@ async def _dispatch_for_user(user_id: str, items: list[tuple]) -> None:
 
 async def _run_apply(user_id: str, job: Job, match: JobMatch) -> None:
     # Import here to avoid a circular import at module load.
-    from backend.services.bot_runner import run_one_job
+    from backend.services.ats_apply_runner import run_one_job
 
     run_id = f"apply:{uuid.uuid4().hex[:8]}"
     try:

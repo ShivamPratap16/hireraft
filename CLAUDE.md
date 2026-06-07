@@ -4,7 +4,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-HireRaft is an auto-apply bot that submits a single resume to job postings on **LinkedIn**, **Indeed**, **Naukri**, and **Internshala**. It is a two-process app: a FastAPI backend that drives Playwright bots, and a React/Vite frontend dashboard.
+HireRaft is an auto-apply bot that surfaces jobs through **two intentionally separate channels** and submits a single resume on the user's behalf. It is a two-process app: a FastAPI backend that drives Playwright bots, and a React/Vite frontend dashboard.
+
+### The two channels (architectural decision — don't conflate them)
+
+| Channel | Source | What it's good for | Code lives in |
+|---|---|---|---|
+| **Automation** (volume) | LinkedIn, Indeed, Naukri, Internshala — search-and-apply via Playwright with the user's own credentials | High volume across millions of jobs; tens of thousands of companies | `backend/bots/{linkedin,indeed,naukri,internshala}.py` |
+| **Discovery** (high-signal, curated) | Greenhouse, Lever, Ashby, Workable, SmartRecruiters — public ATS APIs polled from an admin-curated company list | Curated India-focused startup boards where the apply form is fillable and submission actually works; no user credentials | `backend/services/discovery_service.py` + `backend/bots/{ats_base,greenhouse,lever}.py` |
+
+The channels are parallel, not competing. **Don't try to make Discovery the volume channel** — the realistic options (Workday/iCIMS adapters, paid aggregator APIs, LinkedIn-style scraping in Discovery) were explicitly considered and rejected: duplicating volume in Discovery competes with the existing bots without adding signal. Greenhouse + Lever + Ashby + Workable + SR combined globally is ~24k customers; the India-focused subset is realistically a few hundred. Discovery's job is *quality*: better matching, better company curation, better apply UX. Volume questions belong to the automation bot fleet.
 
 ## Common commands
 

@@ -1,17 +1,86 @@
 [
-  {"name": "Stripe", "ats": "greenhouse", "slug": "stripe"},
-  {"name": "Airbnb", "ats": "greenhouse", "slug": "airbnb"},
-  {"name": "Coinbase", "ats": "greenhouse", "slug": "coinbase"},
-  {"name": "Notion", "ats": "greenhouse", "slug": "notion"},
-  {"name": "Anthropic", "ats": "greenhouse", "slug": "anthropic"},
-  {"name": "OpenAI", "ats": "greenhouse", "slug": "openai"},
-  {"name": "DoorDash", "ats": "greenhouse", "slug": "doordash"},
-  {"name": "Robinhood", "ats": "greenhouse", "slug": "robinhood"},
-  {"name": "Figma", "ats": "greenhouse", "slug": "figma"},
-  {"name": "Postman", "ats": "greenhouse", "slug": "postman"},
-  {"name": "Flexport", "ats": "lever", "slug": "flexport"},
-  {"name": "Brex", "ats": "lever", "slug": "brex"},
-  {"name": "Mercury", "ats": "lever", "slug": "mercury"},
-  {"name": "Ramp", "ats": "lever", "slug": "ramp"},
-  {"name": "Linear", "ats": "lever", "slug": "linear"}
+  {
+    "name": "Paytm",
+    "ats": "lever",
+    "slug": "paytm",
+    "live_jobs": 173,
+    "india_jobs": 141
+  },
+  {
+    "name": "PhonePe",
+    "ats": "greenhouse",
+    "slug": "phonepe",
+    "live_jobs": 68,
+    "india_jobs": 54
+  },
+  {
+    "name": "Meesho",
+    "ats": "lever",
+    "slug": "meesho",
+    "live_jobs": 51,
+    "india_jobs": 49
+  },
+  {
+    "name": "FamPay",
+    "ats": "lever",
+    "slug": "fampay",
+    "live_jobs": 21,
+    "india_jobs": 21
+  },
+  {
+    "name": "Groww",
+    "ats": "greenhouse",
+    "slug": "groww",
+    "live_jobs": 15,
+    "india_jobs": 15
+  },
+  {
+    "name": "CRED",
+    "ats": "lever",
+    "slug": "cred",
+    "live_jobs": 8,
+    "india_jobs": 8
+  },
+  {
+    "name": "Unacademy",
+    "ats": "smartrecruiters",
+    "slug": "unacademy",
+    "live_jobs": 3,
+    "india_jobs": 3
+  },
+  {
+    "name": "Loop Health",
+    "ats": "smartrecruiters",
+    "slug": "loophealth",
+    "live_jobs": 1,
+    "india_jobs": 1
+  },
+  {
+    "name": "Statiq.",
+    "ats": "smartrecruiters",
+    "slug": "statiq",
+    "live_jobs": 1,
+    "india_jobs": 1
+  },
+  {
+    "name": "Kodo",
+    "ats": "smartrecruiters",
+    "slug": "kodo",
+    "live_jobs": 1,
+    "india_jobs": 1
+  },
+  {
+    "name": "Unschool",
+    "ats": "smartrecruiters",
+    "slug": "unschool",
+    "live_jobs": 1,
+    "india_jobs": 1
+  },
+  {
+    "name": "Truecaller",
+    "ats": "greenhouse",
+    "slug": "truecaller",
+    "live_jobs": 1,
+    "india_jobs": 1
+  }
 ]

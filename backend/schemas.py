@@ -234,3 +234,26 @@ class DiscoveryObservability(BaseModel):
     auto_apply_success_rate_7d: Optional[float]
     auto_apply_attempts_7d: int
     auto_apply_succeeded_7d: int
+
+
+class JobRead(BaseModel):
+    id: str
+    external_id: str
+    ats: str
+    company_slug: str
+    company_name: str
+    title: str
+    location: str
+    job_url: str
+    status: str
+    first_seen_at: datetime
+    last_seen_at: datetime
+    closed_at: Optional[datetime]
+    description_preview: str       # first 200 chars of plain-text description
+
+
+class JobsPage(BaseModel):
+    total: int
+    page: int
+    page_size: int
+    items: list[JobRead]

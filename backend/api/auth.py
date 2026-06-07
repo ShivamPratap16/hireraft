@@ -5,7 +5,20 @@ from backend.auth import hash_password, verify_password, create_token, get_curre
 
 router = APIRouter(tags=["auth"])
 
-PLATFORMS = ["linkedin", "indeed", "naukri", "internshala"]
+AUTOMATION_PLATFORMS = ["linkedin", "indeed", "naukri", "internshala"]
+
+
+def _default_platforms() -> list[str]:
+    """Every platform a new user should have a PlatformSetting row for —
+    the 4 search-and-apply bots plus every Discovery ATS adapter."""
+    # Imported lazily to avoid a circular import at module load (the discovery
+    # service module imports models, which imports back into the api layer).
+    from backend.services.discovery_service import DISCOVERY_PLATFORMS
+    return AUTOMATION_PLATFORMS + DISCOVERY_PLATFORMS
+
+
+# Kept for backward compatibility — existing callers read this name.
+PLATFORMS = AUTOMATION_PLATFORMS
 
 class RegisterRequest(BaseModel):
     email: str
@@ -39,9 +52,10 @@ async def register(body: RegisterRequest):
     )
     await user.insert()
 
-    platform_settings = []
-    for p in PLATFORMS:
-        platform_settings.append(PlatformSetting(user_id=str(user.id), platform=p))
+    platform_settings = [
+        PlatformSetting(user_id=str(user.id), platform=p)
+        for p in _default_platforms()
+    ]
     await PlatformSetting.insert_many(platform_settings)
 
     global_setting = GlobalSetting(user_id=str(user.id))

@@ -9,7 +9,7 @@ from backend.models import User, Application, BotRun, RunLog, PlatformSetting, G
 from backend.config import decrypt
 from backend.schemas import (
     CompanyRead, CompanyCreate, CompanyUpdate, CompanySeedItem,
-    DiscoveryObservability,
+    DiscoveryObservability, JobRead, JobsPage,
 )
 from pydantic import BaseModel
 from beanie import PydanticObjectId
@@ -486,6 +486,104 @@ async def trigger_sync(admin: User = Depends(get_current_admin)):
     from backend.scheduler import discovery_cycle
     asyncio.create_task(discovery_cycle())
     return {"ok": True, "message": "discovery cycle scheduled"}
+
+
+def _job_to_read(j: Job) -> JobRead:
+    return JobRead(
+        id=str(j.id),
+        external_id=j.external_id,
+        ats=j.ats,
+        company_slug=j.company_slug,
+        company_name=j.company_name,
+        title=j.title,
+        location=j.location,
+        job_url=j.job_url,
+        status=j.status,
+        first_seen_at=j.first_seen_at,
+        last_seen_at=j.last_seen_at,
+        closed_at=j.closed_at,
+        description_preview=(j.description or "")[:200],
+    )
+
+
+# Bucket jobs by location text. A job is "india" if its location matches one
+# of these tokens (case-insensitive). Everything else with a non-empty location
+# counts as "foreign". An empty location is neither — region filter excludes it.
+INDIA_LOCATION_PATTERN = (
+    r"\b("
+    r"india|"
+    r"bangalore|bengaluru|"
+    r"mumbai|bombay|"
+    r"delhi|new delhi|"
+    r"gurgaon|gurugram|"
+    r"noida|"
+    r"hyderabad|"
+    r"pune|"
+    r"chennai|madras|"
+    r"kolkata|calcutta|"
+    r"ahmedabad|"
+    r"jaipur|"
+    r"kochi|cochin|kerala|"
+    r"chandigarh|"
+    r"indore|"
+    r"coimbatore|"
+    r"trivandrum|thiruvananthapuram"
+    r")\b"
+)
+
+
+@router.get("/admin/jobs", response_model=JobsPage)
+async def list_jobs(
+    ats: Optional[str] = None,
+    status: Optional[str] = None,
+    company_slug: Optional[str] = None,
+    q: Optional[str] = None,
+    region: Optional[str] = None,        # "india" | "foreign" | None (= all)
+    page: int = 1,
+    page_size: int = 50,
+    admin: User = Depends(get_current_admin),
+):
+    """Paginated, read-only view of the global Job index.
+
+    Filters: ats, status, company_slug, q (regex on title), region (india|foreign).
+    Sorted by last_seen_at desc.
+    """
+    page = max(1, page)
+    page_size = max(1, min(200, page_size))
+    skip = (page - 1) * page_size
+
+    mongo_query: dict = {}
+    if ats:
+        mongo_query["ats"] = ats
+    if status:
+        mongo_query["status"] = status
+    if company_slug:
+        mongo_query["company_slug"] = company_slug
+    if q:
+        mongo_query["title"] = {"$regex": q, "$options": "i"}
+    if region == "india":
+        mongo_query["location"] = {"$regex": INDIA_LOCATION_PATTERN, "$options": "i"}
+    elif region == "foreign":
+        # non-empty location that doesn't match the India pattern
+        mongo_query["location"] = {
+            "$nin": ["", None],
+            "$not": {"$regex": INDIA_LOCATION_PATTERN, "$options": "i"},
+        }
+
+    total = await Job.find(mongo_query).count()
+    items = (
+        await Job.find(mongo_query)
+        .sort("-last_seen_at")
+        .skip(skip)
+        .limit(page_size)
+        .to_list()
+    )
+    return JobsPage(
+        total=total,
+        page=page,
+        page_size=page_size,
+        items=[_job_to_read(j) for j in items],
+    )
 
 
 @router.get("/admin/discovery/observability", response_model=DiscoveryObservability)
