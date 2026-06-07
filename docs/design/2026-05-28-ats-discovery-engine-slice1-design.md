@@ -805,7 +805,7 @@ System-scoped logs (where `user_id is None`) need their own viewer: `GET /api/ad
 
 ## 13. Testing strategy
 
-The repo has zero tests at slice 1 start (per `CLAUDE.md`). Slice 1 introduces only the minimum tests needed to validate the non-obvious logic.
+The repo has zero tests at slice 1 start (per `ARCHITECTURE.md`). Slice 1 introduces only the minimum tests needed to validate the non-obvious logic.
 
 ### 13.1 In scope (pure-function tests, no Mongo, no Playwright)
 
@@ -878,4 +878,4 @@ Approved through round-by-round design review:
 - §7–§10 Bots + scheduler + APIs + frontend
 - §11–§14 Error handling, observability, testing, manual test plan
 
-Next step: implementation plan via `superpowers:writing-plans`.
+Next step: write the task-by-task implementation plan.

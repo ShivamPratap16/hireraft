@@ -1,6 +1,6 @@
-# CLAUDE.md
+# Architecture
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Engineer reference for working in this codebase — required env vars, the layered structure, the two-channel design decision, the data model, and the non-obvious gotchas worth knowing before you touch the code.
 
 ## What this is
 

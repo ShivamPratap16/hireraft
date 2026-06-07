@@ -110,8 +110,8 @@ backend/
 scripts/
 └── discover_companies.py       slug-probe YC + curated list against 5 ATS APIs
 
-docs/superpowers/
-├── specs/2026-05-28-ats-discovery-engine-slice1-design.md      design doc
+docs/
+├── design/2026-05-28-ats-discovery-engine-slice1-design.md     design doc
 └── plans/2026-05-28-ats-discovery-engine-slice1.md             24-task implementation plan
 ```
 
@@ -146,7 +146,7 @@ cd frontend && npm install && npm run dev               # http://localhost:5173
 pytest backend/tests/ -v
 ```
 
-See `CLAUDE.md` for full engineer-level walkthrough — required env vars, gotchas, and architecture notes.
+See `ARCHITECTURE.md` for full engineer-level walkthrough — required env vars, gotchas, and architecture notes.
 
 ---
 
@@ -170,9 +170,9 @@ Slice 1 (Discovery engine) is implemented and verified end-to-end. The hourly cy
 
 ## Decision records
 
-This isn't a tutorial; it's a record. The design and implementation discussions live under `docs/superpowers/`:
+This isn't a tutorial; it's a record. The design and implementation discussions live under `docs/`:
 
-- `specs/2026-05-28-ats-discovery-engine-slice1-design.md` — the spec the slice was built from (data model, error matrix, manual test plan)
+- `design/2026-05-28-ats-discovery-engine-slice1-design.md` — the spec the slice was built from (data model, error matrix, manual test plan)
 - `plans/2026-05-28-ats-discovery-engine-slice1.md` — the 24-task TDD implementation plan executed to ship slice 1
 
-The `CLAUDE.md` file at the repo root is the always-loaded engineer brief for anyone working in the codebase — including the two-channel architectural decision that wasn't documented in slice 1's spec.
+The `ARCHITECTURE.md` file at the repo root is the engineer brief — including the two-channel architectural decision that wasn't documented in slice 1's spec.
