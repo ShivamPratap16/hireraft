@@ -1,6 +1,6 @@
 # ATS Discovery Engine (Slice 1) Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+Task-by-task TDD plan derived from the slice-1 design spec. Steps use checkbox (`- [ ]`) syntax so progress can be tracked inline.
 
 **Goal:** Ship the slice-1 discovery engine — hourly Greenhouse + Lever ATS polling, per-user keyword-overlap matching, hybrid auto-apply/notify dispatcher, two new ATS apply bots, and the surrounding admin + user UI.
 
@@ -8,7 +8,7 @@
 
 **Tech stack:** Python 3.14 venv at `./venv`, FastAPI, Beanie/Motor (MongoDB), Playwright, APScheduler, httpx, pytest + pytest-asyncio (new), React 19, TypeScript, TanStack Query.
 
-**Reference spec:** `docs/superpowers/specs/2026-05-28-ats-discovery-engine-slice1-design.md`. Where the plan and the spec disagree, the spec wins — flag the discrepancy and stop.
+**Reference spec:** `docs/design/2026-05-28-ats-discovery-engine-slice1-design.md`. Where the plan and the spec disagree, the spec wins — flag the discrepancy and stop.
 
 ---
 
@@ -57,7 +57,7 @@ Expected: `nothing to commit, working tree clean`.
 
 ## Task 1: Wire up pytest
 
-Add the test runner this slice needs. The repo has no tests today (per CLAUDE.md).
+Add the test runner this slice needs. The repo has no tests today (per ARCHITECTURE.md).
 
 **Files:**
 - Modify: `backend/requirements.txt`
